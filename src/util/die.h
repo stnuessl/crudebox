@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,15 @@
 #ifndef DIE_H_
 #define DIE_H_
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#include <stdlib.h>
+#include <stdio.h>
 
-#define die(fmt, ...) die_("%s: " fmt, __func__, ##__VA_ARGS__)
-
-#pragma clang diagnostic pop
-
-void die_(const char *fmt, ...) __attribute__((noreturn, format(printf, 1, 2)));
+#define die(...)                                                               \
+    do {                                                                       \
+        fprintf(stderr, "crudebox: %s: ", __func__);                           \
+        fprintf(stderr, __VA_ARGS__);                                          \
+                                                                               \
+        exit(EXIT_FAILURE);                                                    \
+    } while (0)
 
 #endif /* DIE_H_ */
