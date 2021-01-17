@@ -23,7 +23,7 @@
 #include <string.h>
 #include <time.h>
 
-#ifdef TIME_PERF
+#ifdef TIMING_ANALYSIS
 
 struct timer {
     const char *name;

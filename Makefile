@@ -98,7 +98,7 @@ endif
 # Paths for the build-, objects- and dependency-directories
 #
 BUILDDIR	:= build
-TARGET		:= $(BUILDDIR)/$(BIN)
+TARGET		:= $(strip $(BUILDDIR))/$(strip $(BIN))
 
 #
 # Set installation directory used in 'make install'
@@ -259,8 +259,10 @@ md5sum		= $$(md5sum $(1) | cut -f1 -d " ")
 #
 all: release
 
-time-perf: CPPFLAGS += -DTIME_PERF
-time-perf: release
+analysis-build: CPPFLAGS 	+= -DNDEBUG -DTIMING_ANALYSIS
+analysis-build: CFLAGS		+= -fno-omit-frame-pointer
+analysis-build: CPPFLAGS 	+= -fno-omit-frame-pointer
+analysis-build: release
 
 release: CPPFLAGS	+= -DNDEBUG
 release: CFLAGS		+= -O2 -flto -fdata-sections -ffunction-sections
