@@ -23,8 +23,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "util/array.h"
 #include "util/die.h"
+#include "util/macro.h"
 #include "util/string-util.h"
 
 #include "config.h"
@@ -38,7 +38,7 @@ static struct item_list items;
 
 static void *thread1_run(void *arg)
 {
-    TIMER_INIT_SIMPLE(CLOCK_MONOTONIC);
+    TIMER_INIT_SIMPLE();
 
     (void) arg;
 
@@ -51,7 +51,7 @@ static void *thread1_run(void *arg)
 
 static void *thread2_run(void *arg)
 {
-    TIMER_INIT_SIMPLE(CLOCK_MONOTONIC);
+    TIMER_INIT_SIMPLE();
 
     (void) arg;
 
@@ -65,6 +65,7 @@ int main(int argc, char *argv[])
     struct widget *widget;
     pthread_t thread1, thread2;
     int err1, err2;
+    bool print;
 
     err1 = pthread_create(&thread1, NULL, &thread1_run, NULL);
     err2 = pthread_create(&thread2, NULL, &thread2_run, NULL);
@@ -75,12 +76,15 @@ int main(int argc, char *argv[])
     if (err2 != 0)
         (void) thread2_run(NULL);
 
+    print = false;
+
     for (int i = 1; i < argc; ++i) {
         if (streq("-h", argv[i]) || streq("--help", argv[i])) {
             printf("Help message\n");
         } else if (streq("--version", argv[i])) {
             printf("Version information\n");
-        } else if (streq("--no-exec", argv[i])) {
+        } else if (streq("--print", argv[i]) || streq("-p", argv[i])) {
+            print = true;
         } else if (i + 1 >= argc) {
             die("missing argument for option \"%s\"\n", argv[i]);
         } else {
@@ -94,8 +98,10 @@ int main(int argc, char *argv[])
 
     /* Apply configuration to the elements */
     widget_set_line_width(widget, conf.widget.line_width);
+    widget_set_frame(widget, conf.widget.frame);
     widget_set_font(widget, conf.font.path);
     widget_set_font_size(widget, conf.font.size);
+    widget_set_print(widget, print);
 
     line_edit_set_fg(&widget->line_edit, conf.line_edit.fg);
     line_edit_set_bg(&widget->line_edit, conf.line_edit.bg);
@@ -108,6 +114,7 @@ int main(int argc, char *argv[])
 
     widget_set_item_list(widget, &items);
 
+    window_update_size(&win);
     window_show(&win);
 
     window_dispatch_events(&win);

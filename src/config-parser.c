@@ -148,9 +148,9 @@ static void config_parser_state_section_3(struct config_parser *parser)
                                 "unexpected end-of-file after section name\n");
             break;
         case '\n':
-            config_parser_error(
-                parser,
-                "unexpected newline character after section name\n");
+            config_parser_error(parser,
+                                "unexpected newline character after section "
+                                "name\n");
             break;
         case ']':
             config_parser_state_line_end(parser);
@@ -178,9 +178,9 @@ static void config_parser_state_section_2(struct config_parser *parser)
                                 "unexpected end-of-file in section name\n");
             break;
         case '\n':
-            config_parser_error(
-                parser,
-                "unexpected newline character in section name\n");
+            config_parser_error(parser,
+                                "unexpected newline character in section "
+                                "name\n");
             break;
         case '\t':
             /* FALLTHROUGH */
@@ -219,9 +219,9 @@ static void config_parser_state_section_1(struct config_parser *parser)
                                 "unexpected end-of-file in section header\n");
             break;
         case '\n':
-            config_parser_error(
-                parser,
-                "unexpected newline character in section header\n");
+            config_parser_error(parser,
+                                "unexpected newline character in section "
+                                "header\n");
             break;
         case '\t':
             /* FALLTHROUGH */
@@ -325,10 +325,10 @@ static void config_parser_state_value_1(struct config_parser *parser)
             ++parser->num_line;
 
             if (newline) {
-                config_parser_error(
-                    parser,
-                    "redundant newline character after equals sign. "
-                    "Expected value definition.\n");
+                config_parser_error(parser,
+                                    "redundant newline character after equals "
+                                    "sign. "
+                                    "Expected value definition.\n");
             }
 
             newline = true;
@@ -345,10 +345,10 @@ static void config_parser_state_value_1(struct config_parser *parser)
              * before the value has to be blank.
              */
             if (newline && !isblank(parser->current.value[-1])) {
-                config_parser_error(
-                    parser,
-                    "expected indentation of value definition if put "
-                    "on a new line\n");
+                config_parser_error(parser,
+                                    "expected indentation of value definition "
+                                    "if put "
+                                    "on a new line\n");
             }
 
             config_parser_state_value_2(parser);
@@ -380,9 +380,9 @@ static void config_parser_state_assignment(struct config_parser *parser)
         case ' ':
             break;
         default:
-            config_parser_error(
-                parser,
-                "unexpected non-blank character before assignment");
+            config_parser_error(parser,
+                                "unexpected non-blank character before "
+                                "assignment");
             break;
         }
     }
@@ -415,12 +415,12 @@ static void config_parser_state_key_name(struct config_parser *parser)
             break;
         default:
             if (!isalnum(parser->cursor[-1])) {
-                config_parser_error(
-                    parser,
-                    "unexpected character '%c' in key name. Keys must "
-                    "consist of the following character set: "
-                    "[a-zA-Z0-9_-]\n",
-                    parser->cursor[-1]);
+                config_parser_error(parser,
+                                    "unexpected character '%c' in key name. "
+                                    "Keys must "
+                                    "consist of the following character set: "
+                                    "[a-zA-Z0-9_-]\n",
+                                    parser->cursor[-1]);
             }
 
             break;
@@ -430,7 +430,7 @@ static void config_parser_state_key_name(struct config_parser *parser)
 
 static void config_parser_state_main(struct config_parser *parser)
 {
-    TIMER_INIT_SIMPLE(CLOCK_MONOTONIC);
+    TIMER_INIT_SIMPLE();
 
     while (!parser->done) {
         switch (*parser->cursor++) {
@@ -494,7 +494,7 @@ int config_parser_run(struct config_parser *parser, const char *path)
     size_t size;
     int err;
 
-    TIMER_INIT_SIMPLE(CLOCK_MONOTONIC);
+    TIMER_INIT_SIMPLE();
 
     err = io_util_path_read_all_str(path, &mem, &size);
     if (err < 0)

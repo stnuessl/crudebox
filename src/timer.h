@@ -42,21 +42,28 @@ static inline void timer_destroy(const struct timer *timer)
     now.tv_sec -= timer->time.tv_sec;
     now.tv_nsec -= timer->time.tv_nsec;
 
-    time = 1000 * 1000 * 1000 * now.tv_sec + now.tv_nsec;
+    /* Convert time value to nanoseconds. */
+    time = 1000000000ull * now.tv_sec + now.tv_nsec;
     unit = "ns";
 
-    if (time >= 20ull * 1000 * 1000 * 1000) {
-        time /= (1ull * 1000 * 1000 * 1000);
+    /*
+     * If time value is >= 20 seconds show time in seconds.
+     * If time value is >= 20 milliseconds show time in milliseconds.
+     * If time value is >= 20 microseconds show time in microseconds.
+     * Else show time in nanoseconds.
+     */
+    if (time >= 20000000000ull) {
+        time /= 1000000000ull;
         unit = "s";
-    } else if (time >= 20ull * 1000 * 1000) {
-        time /= (1ull * 1000 * 1000);
+    } else if (time >= 20000000ull) {
+        time /= 1000000ull;
         unit = "ms";
-    } else if (time >= 20ull * 1000) {
-        time /= (1ull * 1000);
+    } else if (time >= 20000ull) {
+        time /= 1000ull;
         unit = "us";
     }
 
-    printf("Timer \"%s\": %ld %s\n", timer->name, time, unit);
+    fprintf(stderr, "Timer \"%s\": %ld %s\n", timer->name, time, unit);
 }
 
 #define TIMER_INIT(name_, clock_)                                              \
@@ -68,13 +75,14 @@ static inline void timer_destroy(const struct timer *timer)
                                                                                \
     (void) clock_gettime(clock_, &(__FILE__##__LINE__).time)
 
-#define TIMER_INIT_SIMPLE(clock_) TIMER_INIT(__func__, (clock_))
+#define TIMER_INIT_SIMPLE() TIMER_INIT(__func__, CLOCK_MONOTONIC)
+//#define TIMER_INIT_SIMPLE() TIMER_INIT(__func__, CLOCK_PROCESS_CPUTIME_ID)
 
 #else
 
 #define TIMER_INIT(name_, clock_) while (0)
 
-#define TIMER_INIT_SIMPLE(clock_) while (0)
+#define TIMER_INIT_SIMPLE() while (0)
 
 #endif
 

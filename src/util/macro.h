@@ -15,44 +15,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CONFIG_H_
-#define CONFIG_H_
+#ifndef MACRO_H_
+#define MACRO_H_
 
-#include <stdint.h>
+#if __clang__ || __GNUC__
+#define likely(x_) (__builtin_expect(!!(x_), 1))
+#define unlikely(x_) (__builtin_expect(!!(x_), 0))
+#else
+#define likely(x_) (x_)
+#define unlikely(x_) (x_)
+#endif
 
-#include "config-parser.h"
+#define ARRAY_SIZE(x_) ((int) (sizeof((x_)) / sizeof(*(x_))))
 
-struct config {
-    struct config_parser parser;
+#define MIN(a_, b_) (((a_) < (b_)) ? (a_) : (b_))
 
-    struct {
-        uint32_t frame;
-        double line_width;
-    } widget;
+#define MAX(a_, b_) (((a_) > (b_)) ? (a_) : (b_))
 
-    struct {
-        const char *path;
-        double size;
-    } font;
-
-    struct {
-        uint32_t num_items;
-
-        uint32_t fg;
-        uint32_t bg1;
-        uint32_t bg2;
-        uint32_t fg_sel;
-        uint32_t bg_sel;
-    } menu;
-
-    struct {
-        uint32_t fg;
-        uint32_t bg;
-    } line_edit;
-};
-
-void config_init(struct config *config);
-
-void config_destroy(struct config *config);
-
-#endif /* CONFIG_H_ */
+#endif /* MACRO_H_ */

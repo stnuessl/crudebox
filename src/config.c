@@ -21,8 +21,8 @@
 #include "config.h"
 #include "timer.h"
 
-#include "util/array.h"
 #include "util/die.h"
+#include "util/macro.h"
 #include "util/string-util.h"
 
 static void mem_set_u32(struct config_parser_event *event, char *value)
@@ -33,7 +33,7 @@ static void mem_set_u32(struct config_parser_event *event, char *value)
     errno = 0;
     x = strtol(value, &p, 0);
 
-    if (errno != 0) {
+    if (unlikely(errno != 0)) {
         if (errno == ERANGE) {
             die("config: %s.%s: cannot convert \"%s\" - value out of range\n",
                 event->section,
@@ -69,7 +69,7 @@ static void mem_set_color(struct config_parser_event *event, char *value)
 {
     uint32_t x;
 
-    if (strprefix(value, "0x")) {
+    if (unlikely(strprefix(value, "0x"))) {
         die("%s.%s: value \"%s\" must be hexadecimal and start with \"0x\"\n",
             event->section,
             event->key,
@@ -95,7 +95,7 @@ static void mem_set_double(struct config_parser_event *event, char *value)
     errno = 0;
     x = strtod(value, &p);
 
-    if (errno != 0) {
+    if (unlikely(errno != 0)) {
         if (errno == ERANGE) {
             die("config: %s.%s: cannot convert \"%s\" - value out of range\n",
                 event->section,
@@ -109,7 +109,7 @@ static void mem_set_double(struct config_parser_event *event, char *value)
             value);
     }
 
-    if (*p != '\0') {
+    if (unlikely(*p != '\0')) {
         die("config: %s.%s: invalid conversion to double for value \"%s\"\n",
             event->section,
             event->key,
@@ -160,7 +160,7 @@ void config_init(struct config *config)
         { "menu", "fg", &config->menu.fg, &mem_set_color },
         { "menu", "fg_sel", &config->menu.fg_sel, &mem_set_color },
         { "menu", "num_items", &config->menu.num_items, &mem_set_u32 },
-        { "widget", "border", &config->widget.border, &mem_set_color },
+        { "widget", "frame", &config->widget.frame, &mem_set_color },
         { "widget", "line-width", &config->widget.line_width, &mem_set_double },
         /* clang-format on */
     };
@@ -169,6 +169,8 @@ void config_init(struct config *config)
     config_parser_init(&config->parser, events, ARRAY_SIZE(events));
 
     home = getenv("HOME");
+    if (unlikely(!home))
+        die("failed to retrieve ${HOME} variable from environment\n");
 
     for (int i = 0; i < ARRAY_SIZE(paths); ++i) {
         const char *prefix, *path;
@@ -186,7 +188,7 @@ void config_init(struct config *config)
         if (err == 0)
             return;
 
-        if (err != -ENOENT)
+        if (unlikely(err != -ENOENT))
             die("failed to load configuration file \"%s%s\"\n", prefix, path);
     }
 

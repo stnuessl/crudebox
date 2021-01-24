@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,16 +29,17 @@
 
 struct menu {
     cairo_t *cairo;
-    cairo_scaled_font_t *scaled_font;
+    cairo_scaled_font_t *font;
+
     cairo_glyph_t glyphs[64];
     int n_glyphs;
 
     struct item_list *items;
 
-    int x;
-    int y;
-    int width;
-    int height;
+    uint32_t x;
+    uint32_t y;
+    uint32_t width;
+    uint32_t height;
 
     const char **entries;
     int selected;
@@ -56,7 +57,7 @@ struct menu {
     struct color bg_sel;
 };
 
-void menu_init(struct menu *menu);
+void menu_init(struct menu *menu, cairo_t *cairo);
 
 void menu_destroy(struct menu *menu);
 
@@ -75,8 +76,12 @@ void menu_size_hint(const struct menu *menu,
                     uint32_t *width,
                     uint32_t *height);
 
-void menu_configure(
-    struct menu *menu, cairo_t *cairo, int x, int y, int width, int height);
+void menu_configure(struct menu *menu,
+                    const cairo_font_extents_t *extents,
+                    uint32_t x,
+                    uint32_t y,
+                    uint32_t max_width,
+                    uint32_t max_height);
 
 static inline void menu_set_fg(struct menu *menu, uint32_t rgba)
 {

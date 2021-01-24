@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,28 +45,28 @@ struct widget {
     FT_Library freetype;
     FT_Face face;
 
-    cairo_scaled_font_t *scaled_font;
+    cairo_surface_t *surface;
     cairo_t *cairo;
-
-    cairo_font_extents_t font_extents;
 
     struct app_list *apps;
 
     uint32_t width;
     uint32_t height;
 
-    double line_width;
-    double font_size;
+    double line;
+    bool print;
 
     struct line_edit line_edit;
     struct menu menu;
+
+    struct color frame;
 };
 
-void widget_init(struct widget *widget);
+void widget_init(struct widget *widget, cairo_surface_t *surface);
 
 void widget_destroy(struct widget *widget);
 
-void widget_get_size_hint(struct widget *widget,
+void widget_get_size_hint(const struct widget *widget,
                           uint32_t *width,
                           uint32_t *height);
 
@@ -76,13 +76,21 @@ void widget_set_font_size(struct widget *widget, double size);
 
 void widget_set_line_width(struct widget *widget, double line_width);
 
+static inline void widget_set_frame(struct widget *widget, uint32_t value)
+{
+    color_set_u32(&widget->frame, value);
+}
+
+static inline void widget_set_print(struct widget *widget, bool print)
+{
+    widget->print = print;
+}
+
 void widget_set_max_rows(struct widget *widget, int num);
 
 void widget_set_item_list(struct widget *widget, struct item_list *list);
 
-void widget_configure(struct widget *widget, cairo_surface_t *surface);
-
-void widget_update_size(struct widget *widget, uint32_t width, uint32_t height);
+void widget_set_size(struct widget *widget, uint32_t width, uint32_t height);
 
 void widget_draw(struct widget *widget);
 

@@ -18,8 +18,8 @@
 #ifndef DIE_H_
 #define DIE_H_
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define die(...)                                                               \
     do {                                                                       \

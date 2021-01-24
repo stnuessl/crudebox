@@ -23,11 +23,12 @@
 #include <string.h>
 
 #include "die.h"
+#include "macro.h"
 
 static inline void *xmalloc(size_t n)
 {
     void *mem = malloc(n);
-    if (!mem)
+    if (unlikely(!mem))
         die("failed to allocate memory\n");
 
     return mem;
@@ -36,7 +37,7 @@ static inline void *xmalloc(size_t n)
 static inline void *xcalloc(size_t n, size_t size)
 {
     void *mem = calloc(n, size);
-    if (!mem)
+    if (unlikely(!mem))
         die("failed to allocate memory\n");
 
     return mem;
@@ -45,7 +46,7 @@ static inline void *xcalloc(size_t n, size_t size)
 static inline void *xrealloc(void *mem, size_t n)
 {
     mem = realloc(mem, n);
-    if (!mem)
+    if (unlikely(!mem))
         die("failed to allocate memory\n");
 
     return mem;
@@ -54,7 +55,7 @@ static inline void *xrealloc(void *mem, size_t n)
 static inline char *xstrdup(const char *s)
 {
     char *dup = strdup(s);
-    if (!dup)
+    if (unlikely(!dup))
         die("failed to allocate memory\n");
 
     return dup;

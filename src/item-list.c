@@ -31,8 +31,8 @@
 #include "item-list.h"
 #include "timer.h"
 
-#include "util/array.h"
 #include "util/io-util.h"
+#include "util/macro.h"
 #include "util/string-util.h"
 #include "util/xalloc.h"
 
@@ -505,7 +505,7 @@ static void item_list_load_from_directories(struct item_list *list,
     char *dup;
 
     home = getenv("HOME");
-    if (!home)
+    if (unlikely(!home))
         die("failed to retrieve ${HOME} variable from environment\n");
 
     /* Create path to the cache file */
@@ -519,7 +519,7 @@ static void item_list_load_from_directories(struct item_list *list,
 
 void item_list_init(struct item_list *list, const char *dirs)
 {
-    TIMER_INIT_SIMPLE(CLOCK_MONOTONIC);
+    TIMER_INIT_SIMPLE();
 
     memset(list, 0, sizeof(*list));
 
@@ -527,7 +527,7 @@ void item_list_init(struct item_list *list, const char *dirs)
         int n_packets, n_bytes;
 
         n_packets = ioctl(STDIN_FILENO, FIONREAD, &n_bytes);
-        if (n_packets < 0)
+        if (unlikely(n_packets < 0))
             die("failed to check for data on stdin\n");
 
         if (n_bytes > 0) {
@@ -542,7 +542,7 @@ void item_list_init(struct item_list *list, const char *dirs)
          * Use default.
          */
         dirs = getenv("PATH");
-        if (!dirs)
+        if (unlikely(!dirs))
             die("failed to retrieve ${PATH} variable from environment\n");
     }
 
@@ -579,6 +579,8 @@ void item_list_lookup_clear(struct item_list *list)
 
 void item_list_lookup_push_back(struct item_list *list, int c)
 {
+    TIMER_INIT_SIMPLE();
+
     if (list->strlen < ARRAY_SIZE(list->lookup) - 1 && isascii(c))
         list->lookup[list->strlen++] = (char) c;
 

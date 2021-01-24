@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,8 +35,10 @@ struct window {
     xcb_key_symbols_t *symbols;
     xcb_window_t xid;
 
-    xcb_intern_atom_cookie_t cookies[3];
-    xcb_intern_atom_reply_t *replies[3];
+    xcb_intern_atom_reply_t *net_wm_window_type;
+    xcb_intern_atom_reply_t *net_wm_window_type_utility;
+    xcb_intern_atom_reply_t *motif_wm_hints;
+    xcb_grab_keyboard_reply_t *grab_keyboard;
 
     uint32_t width;
     uint32_t height;
@@ -62,6 +64,8 @@ static inline struct widget *window_get_widget(struct window *win)
 {
     return &win->widget;
 }
+
+void window_update_size(struct window *win);
 
 void window_show(struct window *win);
 

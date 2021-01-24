@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #include "line-edit.h"
 #include "timer.h"
 
-#include "util/array.h"
 #include "util/die.h"
+#include "util/macro.h"
 
 static void line_edit_update_background(struct line_edit *edit)
 {
@@ -40,32 +40,32 @@ static void line_edit_update_background(struct line_edit *edit)
 
 static void line_edit_update_glyphs(struct line_edit *edit)
 {
-
-    cairo_scaled_font_t *scaled_font = cairo_get_scaled_font(edit->cairo);
     cairo_glyph_t *glyphs;
-    int num_glyphs;
+    int n_glyphs;
     cairo_status_t status;
     bool cursor;
+
+    TIMER_INIT_SIMPLE();
 
     cursor = edit->strlen < ARRAY_SIZE(edit->str);
     if (cursor)
         edit->str[edit->strlen++] = '_';
 
     glyphs = edit->glyphs;
-    num_glyphs = ARRAY_SIZE(edit->glyphs);
+    n_glyphs = ARRAY_SIZE(edit->glyphs);
 
-    status = cairo_scaled_font_text_to_glyphs(scaled_font,
+    status = cairo_scaled_font_text_to_glyphs(edit->font,
                                               edit->glyph_x,
                                               edit->glyph_y,
                                               edit->str,
                                               edit->strlen,
                                               &glyphs,
-                                              &num_glyphs,
+                                              &n_glyphs,
                                               NULL,
                                               NULL,
                                               NULL);
 
-    if (status != CAIRO_STATUS_SUCCESS)
+    if (unlikely(status != CAIRO_STATUS_SUCCESS))
         die("failed to retrieve glyphs from text\n");
 
     cairo_set_source_rgba(edit->cairo,
@@ -74,7 +74,7 @@ static void line_edit_update_glyphs(struct line_edit *edit)
                           edit->fg.blue,
                           edit->fg.alpha);
 
-    cairo_show_glyphs(edit->cairo, glyphs, num_glyphs);
+    cairo_show_glyphs(edit->cairo, glyphs, n_glyphs);
 
     if (cursor)
         --edit->strlen;
@@ -83,9 +83,11 @@ static void line_edit_update_glyphs(struct line_edit *edit)
         cairo_glyph_free(glyphs);
 }
 
-void line_edit_init(struct line_edit *edit)
+void line_edit_init(struct line_edit *edit, cairo_t *cairo)
 {
     memset(edit, 0, sizeof(*edit));
+
+    edit->cairo = cairo;
 }
 
 void line_edit_destroy(struct line_edit *edit)
@@ -98,34 +100,27 @@ void line_edit_size_hint(const struct line_edit *edit,
                          uint32_t *width,
                          uint32_t *height)
 {
-    int n = ARRAY_SIZE(edit->str);
-
     /*
      * We want to have same space between the glyphs and the window borders.
      * This means we have to reserve space for all the glyphs in the text
      * buffer plus two additional non-visible characters for space padding.
-     * However, we also have to keep in mind that the terminating null byte
-     * is also not visible.
      */
-    *width = (uint32_t)((n + 1) * extents->max_x_advance);
+    *width = (uint32_t)((ARRAY_SIZE(edit->str) + 2) * extents->max_x_advance);
     *height = (uint32_t)(1.5 * extents->height);
 }
 
 void line_edit_configure(struct line_edit *edit,
-                         cairo_t *cairo,
+                         const cairo_font_extents_t *extents,
                          uint32_t x,
                          uint32_t y,
                          uint32_t width,
                          uint32_t height)
 {
-    cairo_font_extents_t extents;
+    edit->font = cairo_get_scaled_font(edit->cairo);
 
-    cairo_font_extents(cairo, &extents);
+    edit->glyph_x = x + extents->max_x_advance;
+    edit->glyph_y = y + (height + extents->ascent - extents->descent) / 2.0;
 
-    edit->glyph_x = x + extents.max_x_advance;
-    edit->glyph_y = y + (height + extents.ascent - extents.descent) / 2.0;
-
-    edit->cairo = cairo;
     edit->x = x;
     edit->y = y;
     edit->width = width;
@@ -164,7 +159,7 @@ void line_edit_pop_back(struct line_edit *edit)
 
 void line_edit_draw(struct line_edit *edit)
 {
-    TIMER_INIT_SIMPLE(CLOCK_MONOTONIC);
+    TIMER_INIT_SIMPLE();
 
     line_edit_update_background(edit);
     line_edit_update_glyphs(edit);

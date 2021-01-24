@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,12 +28,13 @@
 
 struct line_edit {
     cairo_t *cairo;
+    cairo_scaled_font_t *font;
 
     char str[64];
     int strlen;
 
     cairo_glyph_t glyphs[64];
-    int num_glyphs;
+    int n_glyphs;
 
     uint32_t x;
     uint32_t y;
@@ -47,7 +48,7 @@ struct line_edit {
     struct color bg;
 };
 
-void line_edit_init(struct line_edit *edit);
+void line_edit_init(struct line_edit *edit, cairo_t *cairo);
 
 void line_edit_destroy(struct line_edit *edit);
 
@@ -57,7 +58,7 @@ void line_edit_size_hint(const struct line_edit *edit,
                          uint32_t *height);
 
 void line_edit_configure(struct line_edit *edit,
-                         cairo_t *cairo,
+                         const cairo_font_extents_t *extents,
                          uint32_t x,
                          uint32_t y,
                          uint32_t width,

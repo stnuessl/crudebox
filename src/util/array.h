@@ -18,6 +18,4 @@
 #ifndef ARRAY_H_
 #define ARRAY_H_
 
-#define ARRAY_SIZE(x_) ((int) (sizeof((x_)) / sizeof(*(x_))))
-
 #endif /* ARRAY_H_ */

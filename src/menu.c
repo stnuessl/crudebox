@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "menu.h"
 #include "timer.h"
 
-#include "util/array.h"
+#include "util/macro.h"
 
 static inline const struct color *menu_get_fg(const struct menu *menu,
                                               int index)
@@ -106,7 +106,7 @@ static void menu_update_entry(struct menu *menu, int index)
 
     fg = menu_get_fg(menu, index);
 
-    status = cairo_scaled_font_text_to_glyphs(menu->scaled_font,
+    status = cairo_scaled_font_text_to_glyphs(menu->font,
                                               x,
                                               y,
                                               menu->entries[index],
@@ -117,7 +117,7 @@ static void menu_update_entry(struct menu *menu, int index)
                                               NULL,
                                               NULL);
 
-    if (status != CAIRO_STATUS_SUCCESS)
+    if (unlikely(status != CAIRO_STATUS_SUCCESS))
         die("failed to retrieve glyphs\n");
 
     cairo_set_source_rgba(menu->cairo, fg->red, fg->green, fg->blue, fg->alpha);
@@ -127,9 +127,12 @@ static void menu_update_entry(struct menu *menu, int index)
     if (glyphs != menu->glyphs)
         cairo_glyph_free(glyphs);
 }
-void menu_init(struct menu *menu)
+
+void menu_init(struct menu *menu, cairo_t *cairo)
 {
     memset(menu, 0, sizeof(*menu));
+
+    menu->cairo = cairo;
 }
 
 void menu_destroy(struct menu *menu)
@@ -154,24 +157,24 @@ void menu_size_hint(const struct menu *menu,
     *height = (uint32_t)(menu->max_entries * entry_height);
 }
 
-void menu_configure(
-    struct menu *menu, cairo_t *cairo, int x, int y, int width, int height)
+void menu_configure(struct menu *menu,
+                    const cairo_font_extents_t *extents,
+                    uint32_t x,
+                    uint32_t y,
+                    uint32_t width,
+                    uint32_t height)
 {
-    cairo_font_extents_t extents;
+    menu->font = cairo_get_scaled_font(menu->cairo);
 
-    cairo_font_extents(cairo, &extents);
+    menu->glyph_x_offset = extents->max_x_advance;
+    menu->glyph_y_offset = 1 + (extents->ascent - extents->descent) / 2.0;
 
-    menu->glyph_x_offset = extents.max_x_advance;
-    menu->glyph_y_offset = 1 + (extents.ascent - extents.descent) / 2.0;
-
-    menu->cairo = cairo;
-    menu->scaled_font = cairo_get_scaled_font(cairo);
     menu->x = x;
     menu->y = y;
     menu->width = width;
     menu->height = height;
 
-    menu->entry_height = (uint32_t)(1.25 * extents.height);
+    menu->entry_height = (uint32_t)(1.25 * extents->height);
 
     printf("menu: (%u, %u) / (%u, %u)\n", x, y, width, height);
 }
@@ -196,12 +199,18 @@ void menu_down(struct menu *menu)
 
 static void menu_update(struct menu *menu)
 {
-    int num = menu->n_entries;
+    int num;
+
+    /* Save number of currently displayed items. */
+    num = menu->n_entries;
 
     menu_update_entry_list(menu);
 
-    if (num < menu->n_entries)
-        num = menu->n_entries;
+    /*
+     * The number of items which have to be displayed may have changed.
+     * Ensure that _all_ items are updated accordingly.
+     */
+    num = MAX(num, menu->n_entries);
 
     for (int i = 0; i < num; ++i)
         menu_update_entry(menu, i);
@@ -209,6 +218,8 @@ static void menu_update(struct menu *menu)
 
 void menu_lookup_push_back(struct menu *menu, int c)
 {
+    TIMER_INIT_SIMPLE();
+
     item_list_lookup_push_back(menu->items, c);
 
     menu_update(menu);
@@ -216,6 +227,8 @@ void menu_lookup_push_back(struct menu *menu, int c)
 
 void menu_lookup_pop_back(struct menu *menu)
 {
+    TIMER_INIT_SIMPLE();
+
     item_list_lookup_pop_back(menu->items);
 
     menu_update(menu);
@@ -230,7 +243,7 @@ void menu_lookup_clear(struct menu *menu)
 
 void menu_draw(struct menu *menu)
 {
-    TIMER_INIT_SIMPLE(CLOCK_MONOTONIC);
+    TIMER_INIT_SIMPLE();
 
     menu_update_entry_list(menu);
 
