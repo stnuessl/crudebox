@@ -63,6 +63,8 @@ static void *thread2_run(void *arg)
 int main(int argc, char *argv[])
 {
     struct widget *widget;
+    struct line_edit *edit;
+    struct list_view *view;
     pthread_t thread1, thread2;
     int err1, err2;
     bool print;
@@ -95,22 +97,26 @@ int main(int argc, char *argv[])
     (void) pthread_join(thread2, NULL);
 
     widget = window_get_widget(&win);
+    edit = widget_line_edit(widget);
+    view = widget_list_view(widget);
 
     /* Apply configuration to the elements */
-    widget_set_line_width(widget, conf.widget.line_width);
-    widget_set_frame(widget, conf.widget.frame);
     widget_set_font(widget, conf.font.path);
     widget_set_font_size(widget, conf.font.size);
+    widget_set_frame_color(widget, conf.widget.frame);
+    widget_set_line_width(widget, conf.widget.line_width);
     widget_set_print(widget, print);
 
-    line_edit_set_fg(&widget->line_edit, conf.line_edit.fg);
-    line_edit_set_bg(&widget->line_edit, conf.line_edit.bg);
+    line_edit_set_fg(edit, conf.line_edit.fg);
+    line_edit_set_bg(edit, conf.line_edit.bg);
 
-    menu_set_fg(&widget->menu, conf.menu.fg);
-    menu_set_bg(&widget->menu, conf.menu.bg1, conf.menu.bg2);
-    menu_set_fg_sel(&widget->menu, conf.menu.fg_sel);
-    menu_set_bg_sel(&widget->menu, conf.menu.bg_sel);
-    menu_set_max_rows(&widget->menu, conf.menu.num_items);
+    list_view_set_fg(view, conf.list_view.fg[0]);
+    list_view_set_bg(view,
+                     conf.list_view.bg[0],
+                     conf.list_view.bg[1]);
+    list_view_set_fg_sel(view, conf.list_view.fg[1]);
+    list_view_set_bg_sel(view, conf.list_view.bg[2], conf.list_view.bg[3]);
+    list_view_set_max_rows(view, conf.list_view.size);
 
     widget_set_item_list(widget, &items);
 

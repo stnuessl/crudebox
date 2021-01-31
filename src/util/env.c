@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,24 +15,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef COLOR_H_
-#define COLOR_H_
+#include "die.h"
+#include "macro.h"
 
-#include <stdint.h>
-
-struct color {
-    double red;
-    double green;
-    double blue;
-    double alpha;
-};
-
-static inline void color_set_u32(struct color *c, uint32_t rgba)
+const char *env_home(void)
 {
-    c->red = ((double) ((rgba >> 24) & 0xff) / 255.0);
-    c->green = ((double) ((rgba >> 16) & 0xff) / 255.0);
-    c->blue = ((double) ((rgba >> 8) & 0xff) / 255.0);
-    c->alpha = ((double) (rgba & 0xff) / 255.0);
-}
+    static const char *home;
 
-#endif /* COLOR_H_ */
+    if (!home) {
+
+        home = getenv("HOME");
+        if (unlikely(!home))
+            die("failed to retrieve ${HOME} from the environment\n");
+    }
+
+    return home;
+}

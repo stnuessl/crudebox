@@ -31,83 +31,36 @@
 #include "util/die.h"
 #include "util/macro.h"
 
-static inline uint32_t widget_area_x(const struct widget *widget)
-{
-    return (uint32_t) widget->line;
-}
-
-static inline uint32_t widget_area_y(const struct widget *widget)
-{
-    return (uint32_t) widget->line;
-}
-
-static inline uint32_t widget_area_width(const struct widget *widget)
-{
-    return widget->width - (uint32_t)(2.0 * widget->line);
-}
-
-static inline uint32_t widget_area_height(const struct widget *widget)
-{
-    return widget->height - (uint32_t)(3.0 * widget->line);
-}
-
-static void widget_init_cairo(struct widget *widget, cairo_surface_t *surface)
-{
-    double x1, y1, x2, y2;
-
-    TIMER_INIT_SIMPLE();
-
-    widget->surface = surface;
-
-    widget->cairo = cairo_create(surface);
-    if (unlikely(cairo_status(widget->cairo) != CAIRO_STATUS_SUCCESS))
-        die("failed to initialize cairo graphics library\n");
-
-    cairo_clip_extents(widget->cairo, &x1, &y1, &x2, &y2);
-
-    widget->width = (uint32_t)(x2 - x1);
-    widget->height = (uint32_t)(y2 - y1);
-}
-
 static void widget_configure_line_edit(struct widget *widget,
                                        const cairo_font_extents_t *extents)
 {
-    uint32_t x, y, width, height;
+    uint32_t x1, y1, x2, y2, w, h;
 
-    line_edit_size_hint(&widget->line_edit, extents, &width, &height);
+    line_edit_size_hint(&widget->line_edit, extents, &w, &h);
 
-    x = widget_area_x(widget);
-    y = widget_area_y(widget);
-    width = MIN(width, widget_area_width(widget));
-    height = MIN(height, widget_area_height(widget));
+    /* Calculate geometry of the widget without the frame */
+    x1 = widget->line_width;
+    y1 = x1;
+    x2 = widget->width - widget->line_width;
+    y2 = widget->height - widget->line_width;
 
-    line_edit_configure(&widget->line_edit, extents, x, y, width, height);
+    x2 = MIN(x2, x1 + w);
+    y2 = MIN(y2, y1 + h);
 
-    printf("%s: P(%u|%u) Size(%u|%u)\n", __func__, x, y, width, height);
+    line_edit_configure(&widget->line_edit, extents, x1, y1, x2, y2);
 }
 
-static void widget_configure_menu(struct widget *widget,
-                                  const cairo_font_extents_t *extents)
+static void widget_configure_list_view(struct widget *widget,
+                                       const cairo_font_extents_t *extents)
 {
-    uint32_t x, y, width, height, rem;
+    uint32_t x1, y1, x2, y2;
 
-    menu_size_hint(&widget->menu, extents, &width, &height);
+    x1 = widget->line_width;
+    y1 = 3 * widget->line_width + line_edit_height(&widget->line_edit);
+    x2 = x1 + line_edit_width(&widget->line_edit);
+    y2 = widget->height - widget->line_width;
 
-    x = widget_area_x(widget);
-
-    y = widget_area_y(widget);
-    y += line_edit_height(&widget->line_edit);
-    y += (uint32_t) widget->line;
-
-    /* Width has to be the same as for the line edit element */
-    width = line_edit_width(&widget->line_edit);
-
-    rem = widget_area_height(widget) - line_edit_height(&widget->line_edit);
-    height = MIN(height, rem);
-
-    menu_configure(&widget->menu, extents, x, y, width, height);
-
-    printf("%s: P(%u|%u) Size(%u|%u)\n", __func__, x, y, width, height);
+    list_view_configure(&widget->list_view, extents, x1, y1, x2, y2);
 }
 
 static void widget_clear(struct widget *widget)
@@ -115,7 +68,7 @@ static void widget_clear(struct widget *widget)
     TIMER_INIT_SIMPLE();
 
     line_edit_clear(&widget->line_edit);
-    menu_lookup_clear(&widget->menu);
+    list_view_lookup_clear(&widget->list_view);
 }
 
 static void widget_event_add_char(struct widget *widget, int c)
@@ -125,7 +78,7 @@ static void widget_event_add_char(struct widget *widget, int c)
     cairo_push_group(widget->cairo);
 
     line_edit_push_back(&widget->line_edit, c);
-    menu_lookup_push_back(&widget->menu, c);
+    list_view_lookup_push_back(&widget->list_view, c);
 
     cairo_pop_group_to_source(widget->cairo);
     cairo_paint(widget->cairo);
@@ -138,7 +91,7 @@ static void widget_event_remove_char(struct widget *widget)
     cairo_push_group(widget->cairo);
 
     line_edit_pop_back(&widget->line_edit);
-    menu_lookup_pop_back(&widget->menu);
+    list_view_lookup_pop_back(&widget->list_view);
 
     cairo_pop_group_to_source(widget->cairo);
     cairo_paint(widget->cairo);
@@ -149,7 +102,9 @@ __attribute__((noreturn)) static void widget_exec_item(struct widget *widget)
     const char *file;
     char *argv[2];
 
-    file = menu_get_entry(&widget->menu);
+    file = list_view_get_entry(&widget->list_view);
+    if (!file)
+        exit(EXIT_SUCCESS);
 
     if (widget->print) {
         fprintf(stdout, "%s\n", file);
@@ -168,6 +123,7 @@ __attribute__((noreturn)) static void widget_exec_item(struct widget *widget)
 void widget_init(struct widget *widget, cairo_surface_t *surface)
 {
     FT_Error error;
+    double x1, y1, x2, y2;
 
     TIMER_INIT_SIMPLE();
 
@@ -175,18 +131,25 @@ void widget_init(struct widget *widget, cairo_surface_t *surface)
     if (unlikely(error))
         die("failed to initialize font library\n");
 
-    widget->face = NULL;
+    widget->surface = surface;
 
-    widget_init_cairo(widget, surface);
+    widget->cairo = cairo_create(surface);
+    if (unlikely(cairo_status(widget->cairo) != CAIRO_STATUS_SUCCESS))
+        die("failed to initialize cairo graphics library\n");
+
+    cairo_clip_extents(widget->cairo, &x1, &y1, &x2, &y2);
+
+    widget->width = (uint32_t)(x2 - x1);
+    widget->height = (uint32_t)(y2 - y1);
 
     line_edit_init(&widget->line_edit, widget->cairo);
-    menu_init(&widget->menu, widget->cairo);
+    list_view_init(&widget->list_view, widget->cairo);
 }
 
 void widget_destroy(struct widget *widget)
 {
 #ifdef MEM_NOLEAK
-    menu_destroy(&widget->menu);
+    list_view_destroy(&widget->list_view);
     line_edit_destroy(&widget->line_edit);
     cairo_destroy(widget->cairo);
     FT_Done_FreeType(widget->freetype);
@@ -200,21 +163,21 @@ void widget_get_size_hint(const struct widget *widget,
                           uint32_t *height)
 {
     cairo_font_extents_t extents;
-    uint32_t w1, h1, w2, h2;
-    double line;
+    uint32_t w1, h1, w2, h2, w3, h3;
 
     cairo_font_extents(widget->cairo, &extents);
 
-    line_edit_size_hint(&widget->line_edit, &extents, &w1, &h1);
-    menu_size_hint(&widget->menu, &extents, &w2, &h2);
+    w1 = 2 * widget->line_width;
+    h1 = 4 * widget->line_width;
 
-    line = cairo_get_line_width(widget->cairo);
+    line_edit_size_hint(&widget->line_edit, &extents, &w2, &h2);
+    list_view_size_hint(&widget->list_view, &extents, &w3, &h3);
 
     /* Ensure both sub-widgets have enough width */
-    *width = line + MAX(w1, w2) + line;
+    *width = w1 + MAX(w2, w3);
 
     /* Ensure both sub-widgets have enough height */
-    *height = line + h1 + line + h2 + line;
+    *height = h1 + h2 + h3;
 
     printf("font height: %lf\n", extents.height);
 
@@ -235,7 +198,7 @@ void widget_set_font(struct widget *widget, const char *path)
     if (cairo_font_face_status(cr_face) != CAIRO_STATUS_SUCCESS)
         die("failed to create cairo font face for \"%s\"\n", path);
 
-    if (widget->face != NULL)
+    if (widget->face)
         FT_Done_Face(widget->face);
 
     widget->face = ft_face;
@@ -244,70 +207,47 @@ void widget_set_font(struct widget *widget, const char *path)
     cairo_font_face_destroy(cr_face);
 }
 
-void widget_set_font_size(struct widget *widget, double font_size)
-{
-    cairo_set_font_size(widget->cairo, font_size);
-}
-
-void widget_set_line_width(struct widget *widget, double line_width)
-{
-    widget->line = line_width;
-    cairo_set_line_width(widget->cairo, line_width);
-}
-
 void widget_set_max_rows(struct widget *widget, int num)
 {
-    menu_set_max_rows(&widget->menu, num);
+    list_view_set_max_rows(&widget->list_view, num);
 }
 
 void widget_set_item_list(struct widget *widget, struct item_list *list)
 {
-    menu_set_item_list(&widget->menu, list);
+    list_view_set_item_list(&widget->list_view, list);
 }
 
 void widget_draw(struct widget *widget)
 {
-    uint32_t x, y, width, height;
+    uint32_t x, y, w, h;
 
     TIMER_INIT_SIMPLE();
 
-    /*
-     * Calculate geometry of the widget frame.
-     * Make sure that the line is centered correctly.
-     */
-    x = (uint32_t)(widget->line / 2.0);
+    /* Draw the frame surrounding the widget. */
+    x = widget->line_width / 2;
     y = x;
+    w = widget->width - widget->line_width;
+    h = widget->height - widget->line_width;
 
-    /*
-     * We have to move the start point of the frame by half a line width
-     * into the middle. We also have to move the end point of the frame by
-     * half a line width into the middle. The frame width / height is thus
-     * the original widget width / height minus two times half the line
-     * width.
-     */
-    width = widget->width - widget->line;
-    height = widget->height - widget->line;
+    cairo_set_line_width(widget->cairo, widget->line_width);
+    cairo_rectangle(widget->cairo, x, y, w, h);
 
+    /* Draw frame between the line-edit and list-view elements. */
+    y += widget->line_width + line_edit_height(&widget->line_edit);
+    h = widget->line_width;
+
+    cairo_rectangle(widget->cairo, x, y, w, h);
     cairo_set_source_rgba(widget->cairo,
                           widget->frame.red,
                           widget->frame.green,
                           widget->frame.blue,
                           widget->frame.alpha);
 
-    cairo_rectangle(widget->cairo, x, y, width, height);
-
-    /* Draw line delimiter between line_edit and menu. */
-    y += line_edit_height(&widget->line_edit) + widget->line;
-    cairo_move_to(widget->cairo, x, y);
-
-    x += width;
-    cairo_line_to(widget->cairo, x, y);
-
     cairo_stroke(widget->cairo);
 
     /* Draw individual widgets */
     line_edit_draw(&widget->line_edit);
-    menu_draw(&widget->menu);
+    list_view_draw(&widget->list_view);
 }
 
 void widget_set_size(struct widget *widget, uint32_t width, uint32_t height)
@@ -322,7 +262,7 @@ void widget_set_size(struct widget *widget, uint32_t width, uint32_t height)
     cairo_font_extents(widget->cairo, &extents);
 
     widget_configure_line_edit(widget, &extents);
-    widget_configure_menu(widget, &extents);
+    widget_configure_list_view(widget, &extents);
 }
 
 void widget_do_key_event(struct widget *widget, struct key_event ev)
@@ -332,7 +272,7 @@ void widget_do_key_event(struct widget *widget, struct key_event ev)
     if (ev.shift) {
         switch (ev.symbol) {
         case XKB_KEY_Tab:
-            menu_up(&widget->menu);
+            list_view_up(&widget->list_view);
             break;
         default:
             break;
@@ -361,11 +301,11 @@ void widget_do_key_event(struct widget *widget, struct key_event ev)
         break;
     case XKB_KEY_ISO_Left_Tab:
     case XKB_KEY_Up:
-        menu_up(&widget->menu);
+        list_view_up(&widget->list_view);
         break;
     case XKB_KEY_Tab:
     case XKB_KEY_Down:
-        menu_down(&widget->menu);
+        list_view_down(&widget->list_view);
         break;
     case XKB_KEY_Return:
         widget_exec_item(widget);

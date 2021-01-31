@@ -31,6 +31,7 @@
 #include "item-list.h"
 #include "timer.h"
 
+#include "util/env.h"
 #include "util/io-util.h"
 #include "util/macro.h"
 #include "util/string-util.h"
@@ -504,9 +505,7 @@ static void item_list_load_from_directories(struct item_list *list,
     const char *home, *cache;
     char *dup;
 
-    home = getenv("HOME");
-    if (unlikely(!home))
-        die("failed to retrieve ${HOME} variable from environment\n");
+    home = env_home();
 
     /* Create path to the cache file */
     strconcat2a(&cache, home, "/.cache/crudebox/cache");

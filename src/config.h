@@ -18,6 +18,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "config-parser.h"
@@ -27,23 +28,25 @@ struct config {
 
     struct {
         uint32_t frame;
-        double line_width;
+        uint32_t line_width;
     } widget;
 
     struct {
         const char *path;
-        double size;
+        uint32_t size;
     } font;
 
     struct {
-        uint32_t num_items;
+        uint32_t size;
 
         uint32_t fg;
         uint32_t bg1;
         uint32_t bg2;
         uint32_t fg_sel;
-        uint32_t bg_sel;
-    } menu;
+        uint32_t bg1_sel;
+        uint32_t bg2_sel;
+        uint32_t lines;
+    } list_view;
 
     struct {
         uint32_t fg;

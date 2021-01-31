@@ -27,7 +27,14 @@
 
 static void line_edit_update_background(struct line_edit *edit)
 {
-    cairo_rectangle(edit->cairo, edit->x, edit->y, edit->width, edit->height);
+    uint32_t x, y, w, h;
+
+    x = edit->x1;
+    y = edit->y1;
+    w = edit->x2 - x;
+    h = edit->y2 - y;
+
+    cairo_rectangle(edit->cairo, x, y, w, h);
 
     cairo_set_source_rgba(edit->cairo,
                           edit->bg.red,
@@ -96,35 +103,44 @@ void line_edit_destroy(struct line_edit *edit)
 }
 
 void line_edit_size_hint(const struct line_edit *edit,
-                         const cairo_font_extents_t *extents,
+                         const cairo_font_extents_t *ext,
                          uint32_t *width,
                          uint32_t *height)
 {
+    uint32_t w, h;
+
     /*
      * We want to have same space between the glyphs and the window borders.
      * This means we have to reserve space for all the glyphs in the text
      * buffer plus two additional non-visible characters for space padding.
      */
-    *width = (uint32_t)((ARRAY_SIZE(edit->str) + 2) * extents->max_x_advance);
-    *height = (uint32_t)(1.5 * extents->height);
+    w = (uint32_t)((ARRAY_SIZE(edit->str) + 2) * ext->max_x_advance);
+    h = 1 + (uint32_t)(1.5 * ext->height);
+
+    *width = w;
+    *height = h;
 }
 
 void line_edit_configure(struct line_edit *edit,
-                         const cairo_font_extents_t *extents,
-                         uint32_t x,
-                         uint32_t y,
-                         uint32_t width,
-                         uint32_t height)
+                         const cairo_font_extents_t *ext,
+                         uint32_t x1,
+                         uint32_t y1,
+                         uint32_t x2,
+                         uint32_t y2)
 {
+    uint32_t mid;
+
+    edit->x1 = x1;
+    edit->y1 = y1;
+    edit->x2 = x2;
+    edit->y2 = y2;
+
     edit->font = cairo_get_scaled_font(edit->cairo);
 
-    edit->glyph_x = x + extents->max_x_advance;
-    edit->glyph_y = y + (height + extents->ascent - extents->descent) / 2.0;
+    mid = (edit->y2 - edit->y1 + ext->ascent - ext->descent) / 2.0;
 
-    edit->x = x;
-    edit->y = y;
-    edit->width = width;
-    edit->height = height;
+    edit->glyph_x = edit->x1 + (uint32_t) ext->max_x_advance;
+    edit->glyph_y = edit->y1 + mid;
 }
 
 void line_edit_clear(struct line_edit *edit)

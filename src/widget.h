@@ -30,7 +30,8 @@
 
 #include "item-list.h"
 #include "line-edit.h"
-#include "menu.h"
+#include "list-view.h"
+#include "widget-common.h"
 
 struct key_event {
     int symbol;
@@ -48,23 +49,31 @@ struct widget {
     cairo_surface_t *surface;
     cairo_t *cairo;
 
-    struct app_list *apps;
-
     uint32_t width;
     uint32_t height;
 
-    double line;
     bool print;
 
-    struct line_edit line_edit;
-    struct menu menu;
-
     struct color frame;
+    uint32_t line_width;
+
+    struct line_edit line_edit;
+    struct list_view list_view;
 };
 
 void widget_init(struct widget *widget, cairo_surface_t *surface);
 
 void widget_destroy(struct widget *widget);
+
+static inline struct line_edit *widget_line_edit(struct widget *widget)
+{
+    return &widget->line_edit;
+}
+
+static inline struct list_view *widget_list_view(struct widget *widget)
+{
+    return &widget->list_view;
+}
 
 void widget_get_size_hint(const struct widget *widget,
                           uint32_t *width,
@@ -72,13 +81,19 @@ void widget_get_size_hint(const struct widget *widget,
 
 void widget_set_font(struct widget *widget, const char *path);
 
-void widget_set_font_size(struct widget *widget, double size);
+static inline void widget_set_font_size(struct widget *widget, uint32_t size)
+{
+    cairo_set_font_size(widget->cairo, (double) size);
+}
 
-void widget_set_line_width(struct widget *widget, double line_width);
-
-static inline void widget_set_frame(struct widget *widget, uint32_t value)
+static inline void widget_set_frame_color(struct widget *widget, uint32_t value)
 {
     color_set_u32(&widget->frame, value);
+}
+
+static inline void widget_set_line_width(struct widget *widget, uint32_t width)
+{
+    widget->line_width = width;
 }
 
 static inline void widget_set_print(struct widget *widget, bool print)

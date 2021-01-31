@@ -83,6 +83,8 @@ static void window_init_xcb(struct window *win, const char *display_name)
 {
     int err;
 
+    TIMER_INIT_SIMPLE();
+
     win->conn = xcb_connect(display_name, NULL);
 
     err = xcb_connection_has_error(win->conn);
@@ -107,6 +109,8 @@ static void window_init_cookies(struct window *win, struct cookies *cookies)
         "_MOTIF_WM_HINTS",
     };
 
+    TIMER_INIT_SIMPLE();
+
     cookies->net_wm_window_type =
         xcb_intern_atom(win->conn, false, strlen(names[0]), names[0]);
 
@@ -127,6 +131,8 @@ static void window_init_cookies(struct window *win, struct cookies *cookies)
 static void window_init_frame(struct window *win)
 {
     uint32_t values[2];
+
+    TIMER_INIT_SIMPLE();
 
     win->xid = xcb_generate_id(win->conn);
 
@@ -176,6 +182,8 @@ static void window_init_widget(struct window *win)
 {
     cairo_surface_t *surface;
 
+    TIMER_INIT_SIMPLE();
+
     /* Initialize the cairo surface to be used by the widget */
     surface = cairo_xcb_surface_create(win->conn,
                                        win->xid,
@@ -197,7 +205,7 @@ static int window_grab_keyboard_fallback(struct window *win)
     struct timespec ts;
     int attempts;
 
-    /* 
+    /*
      * Use force for grabbing the keyboard.
      * We perform a grab every 1500 us. After 100 failed attempts we abort.
      * Worst case is that we wasted 150 ms
@@ -339,13 +347,12 @@ void window_update_size(struct window *win)
 }
 
 void window_show(struct window *win)
-{     
+{
     (void) xcb_map_window(win->conn, win->xid);
 }
 
 void window_dispatch_events(struct window *win)
 {
-
 
     while (1) {
         xcb_generic_event_t *ev;
@@ -360,15 +367,14 @@ void window_dispatch_events(struct window *win)
             die("lost x11 connection to the display manager\n");
 
         switch (ev->response_type & 0x7f) {
-        case XCB_EXPOSE: 
+        case XCB_EXPOSE:
             /* Make sure our window has the input focues */
             (void) xcb_set_input_focus(win->conn,
                                        XCB_INPUT_FOCUS_POINTER_ROOT,
                                        win->xid,
                                        XCB_CURRENT_TIME);
 
-
-            widget_draw(&win->widget); 
+            widget_draw(&win->widget);
 
             break;
         case XCB_KEY_PRESS:

@@ -24,7 +24,7 @@
 
 #include <cairo.h>
 
-#include "color.h"
+#include "widget-common.h"
 
 struct line_edit {
     cairo_t *cairo;
@@ -34,15 +34,14 @@ struct line_edit {
     int strlen;
 
     cairo_glyph_t glyphs[64];
-    int n_glyphs;
 
-    uint32_t x;
-    uint32_t y;
-    uint32_t width;
-    uint32_t height;
+    uint32_t x1;
+    uint32_t y1;
+    uint32_t x2;
+    uint32_t y2;
 
-    double glyph_x;
-    double glyph_y;
+    uint32_t glyph_x;
+    uint32_t glyph_y;
 
     struct color fg;
     struct color bg;
@@ -53,16 +52,26 @@ void line_edit_init(struct line_edit *edit, cairo_t *cairo);
 void line_edit_destroy(struct line_edit *edit);
 
 void line_edit_size_hint(const struct line_edit *edit,
-                         const cairo_font_extents_t *extents,
+                         const cairo_font_extents_t *ext,
                          uint32_t *width,
                          uint32_t *height);
 
 void line_edit_configure(struct line_edit *edit,
-                         const cairo_font_extents_t *extents,
-                         uint32_t x,
-                         uint32_t y,
-                         uint32_t width,
-                         uint32_t height);
+                         const cairo_font_extents_t *ext,
+                         uint32_t x1,
+                         uint32_t y1,
+                         uint32_t x2,
+                         uint32_t y2);
+
+static inline uint32_t line_edit_width(const struct line_edit *edit)
+{
+    return edit->x2 - edit->x1;
+}
+
+static inline uint32_t line_edit_height(const struct line_edit *edit)
+{
+    return edit->y2 - edit->y1;
+}
 
 static inline void line_edit_set_fg(struct line_edit *edit, uint32_t rgba)
 {
@@ -72,26 +81,6 @@ static inline void line_edit_set_fg(struct line_edit *edit, uint32_t rgba)
 static inline void line_edit_set_bg(struct line_edit *edit, uint32_t rgba)
 {
     color_set_u32(&edit->bg, rgba);
-}
-
-static inline uint32_t line_edit_x(const struct line_edit *edit)
-{
-    return edit->x;
-}
-
-static inline uint32_t line_edit_y(const struct line_edit *edit)
-{
-    return edit->y;
-}
-
-static inline uint32_t line_edit_width(const struct line_edit *edit)
-{
-    return edit->width;
-}
-
-static inline uint32_t line_edit_height(const struct line_edit *edit)
-{
-    return edit->height;
 }
 
 void line_edit_clear(struct line_edit *edit);

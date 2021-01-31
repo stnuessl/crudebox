@@ -22,6 +22,7 @@
 #include "timer.h"
 
 #include "util/die.h"
+#include "util/env.h"
 #include "util/macro.h"
 #include "util/string-util.h"
 
@@ -87,6 +88,7 @@ static void mem_set_color(struct config_parser_event *event, char *value)
     }
 }
 
+#if 0
 static void mem_set_double(struct config_parser_event *event, char *value)
 {
     char *p;
@@ -118,6 +120,7 @@ static void mem_set_double(struct config_parser_event *event, char *value)
 
     *(double *) event->mem = x;
 }
+#endif
 
 static void mem_set_str(struct config_parser_event *event, char *value)
 {
@@ -151,37 +154,35 @@ void config_init(struct config *config)
     struct config_parser_event events[] = {
         /* clang-format off */
         { "font", "path", &config->font.path, &mem_set_str },
-        { "font", "size", &config->font.size, &mem_set_double },
+        { "font", "size", &config->font.size, &mem_set_u32 },
         { "line-edit", "bg", &config->line_edit.bg, &mem_set_color },
         { "line-edit", "fg", &config->line_edit.fg, &mem_set_color },
-        { "menu", "bg1", &config->menu.bg1, &mem_set_color },
-        { "menu", "bg2", &config->menu.bg2, &mem_set_color },
-        { "menu", "bg_sel", &config->menu.bg_sel, &mem_set_color },
-        { "menu", "fg", &config->menu.fg, &mem_set_color },
-        { "menu", "fg_sel", &config->menu.fg_sel, &mem_set_color },
-        { "menu", "num_items", &config->menu.num_items, &mem_set_u32 },
+        { "list-view", "bg1", &config->list_view.bg1, &mem_set_color },
+        { "list-view", "bg1-sel", &config->list_view.bg1_sel, &mem_set_color },
+        { "list-view", "bg2", &config->list_view.bg2, &mem_set_color },
+        { "list-view", "bg2-sel", &config->list_view.bg2_sel, &mem_set_color },
+        { "list-view", "fg", &config->list_view.fg, &mem_set_color },
+        { "list-view", "fg-sel", &config->list_view.fg_sel, &mem_set_color },
+        { "list-view", "lines", &config->list_view.lines, &mem_set_color },
+        { "list-view", "size", &config->list_view.size, &mem_set_u32 },
         { "widget", "frame", &config->widget.frame, &mem_set_color },
-        { "widget", "line-width", &config->widget.line_width, &mem_set_double },
+        { "widget", "line-width", &config->widget.line_width, &mem_set_u32 },
         /* clang-format on */
     };
-    const char *home;
+    const char *home = env_home();
 
     config_parser_init(&config->parser, events, ARRAY_SIZE(events));
-
-    home = getenv("HOME");
-    if (unlikely(!home))
-        die("failed to retrieve ${HOME} variable from environment\n");
 
     for (int i = 0; i < ARRAY_SIZE(paths); ++i) {
         const char *prefix, *path;
         int err;
 
-        prefix = "";
-        path = paths[i];
-
-        if (path[0] == '~') {
+        if (paths[i][0] == '~') {
             prefix = home;
-            ++path;
+            path = paths[i] + 1;
+        } else {
+            prefix = "";
+            path = paths[i];
         }
 
         err = config_run_parser(config, prefix, path);
