@@ -82,9 +82,11 @@ config_parser_error(const struct config_parser *parser, const char *fmt, ...)
 
     path = parser->path;
     line = parser->num_line;
-    column = parser->cursor - parser->line;
 
-    fprintf(stderr, "config-parser: error:\n%s:%d:%d:\n  ", path, line, column);
+    /* Subtract '1': Adjust cursor for the post-increment modification. */
+    column = parser->cursor - parser->line - 1;
+
+    fprintf(stderr, "config-parser: error: %s:%d:%d:\n  ", path, line, column);
     vfprintf(stderr, fmt, args);
 
     va_end(args);
@@ -327,8 +329,7 @@ static void config_parser_state_value_1(struct config_parser *parser)
             if (newline) {
                 config_parser_error(parser,
                                     "redundant newline character after equals "
-                                    "sign. "
-                                    "Expected value definition.\n");
+                                    "sign. Expected value definition.\n");
             }
 
             newline = true;
@@ -346,9 +347,8 @@ static void config_parser_state_value_1(struct config_parser *parser)
              */
             if (newline && !isblank(parser->current.value[-1])) {
                 config_parser_error(parser,
-                                    "expected indentation of value definition "
-                                    "if put "
-                                    "on a new line\n");
+                                    "if the value definition is placed on a "
+                                    "new line, it needs to be indented\n");
             }
 
             config_parser_state_value_2(parser);
@@ -369,21 +369,37 @@ static void config_parser_state_assignment(struct config_parser *parser)
         case '=':
             config_parser_state_value_1(parser);
             return;
-        case '\n':
-            /* Current key has no value */
-            parser->current.value = "";
-
-            config_parser_emit(parser);
-            return;
         case '\t':
             /* FALLTHROUGH */
         case ' ':
             break;
+        case ';':
+            /* FALLTHROUGH */
+        case '#':
+            parser->current.value = "";
+
+            config_parser_emit(parser);
+            config_parser_state_comment(parser);
+
+            return;
         default:
-            config_parser_error(parser,
-                                "unexpected non-blank character before "
-                                "assignment");
-            break;
+            /*
+             * This scenario allows us to have lines in the configuration
+             * file as simple as:
+             *      key value
+             */
+
+            if (!isalnum(parser->cursor[-1])) {
+                config_parser_error(parser,
+                                    "unexpected non-blank and non-alphanumeric "
+                                    "character before assignment\n");
+            }
+
+            /* Found the start of the configuration value. */
+            parser->current.value = parser->cursor - 1;
+            config_parser_state_value_2(parser);
+
+            return;
         }
     }
 }
@@ -395,8 +411,23 @@ static void config_parser_state_key_name(struct config_parser *parser)
         case '\0':
             parser->done = true;
             return;
-        case '\n':
+        case ';':
             /* FALLTHROUGH */
+        case '#':
+            parser->cursor[-1] = '\0';
+            parser->current.value = "";
+
+            config_parser_emit(parser);
+            config_parser_state_comment(parser);
+
+            return;
+        case '\n':
+            parser->cursor[-1] = '\0';
+            parser->current.value = "";
+
+            config_parser_emit(parser);
+
+            return;
         case ' ':
             parser->cursor[-1] = '\0';
             config_parser_state_assignment(parser);
