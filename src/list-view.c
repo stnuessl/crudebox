@@ -71,17 +71,44 @@ static void list_view_update_entry_list(struct list_view *view)
         view->selected = 0;
 }
 
+static void list_view_draw_lines(struct list_view *view)
+{
+    cairo_antialias_t antialias;
+    uint32_t h;
+
+    antialias = cairo_get_antialias(view->cairo);
+
+    cairo_set_antialias(view->cairo, CAIRO_ANTIALIAS_NONE);
+    cairo_set_line_width(view->cairo, 1.0);
+
+    h = 1 + (view->y2 - view->y1) / view->max_entries;
+
+    for (uint32_t y = view->y1 + h; y < view->y2; y += h) {
+        cairo_move_to(view->cairo, view->x1, y);
+        cairo_line_to(view->cairo, view->x2, y);
+    }
+
+    cairo_set_source_rgba(view->cairo,
+                          view->lines.red,
+                          view->lines.green,
+                          view->lines.blue,
+                          view->lines.alpha);
+
+    cairo_stroke(view->cairo);
+
+    cairo_set_antialias(view->cairo, antialias);
+}
+
 static void list_view_update_entry_bg(struct list_view *view, int index)
 {
     const struct color *bg = list_view_get_bg(view, index);
     uint32_t x, y, w, h;
 
-
     w = view->x2 - view->x1;
     h = (view->y2 - view->y1) / view->max_entries;
-    
+
     x = view->x1;
-    y = view->y1 + index * h;
+    y = view->y1 + index * (h + 1);
 
     cairo_rectangle(view->cairo, x, y, w, h);
     cairo_set_source_rgba(view->cairo, bg->red, bg->green, bg->blue, bg->alpha);
@@ -97,7 +124,7 @@ static void list_view_update_entry_fg(struct list_view *view, int index)
     cairo_status_t status;
 
     x = view->glyph_x;
-    y = view->glyph_y + index * ((view->y2 - view->y1) / view->max_entries);
+    y = view->glyph_y + index * (1 + (view->y2 - view->y1) / view->max_entries);
 
     status = cairo_scaled_font_text_to_glyphs(view->font,
                                               x,
@@ -138,6 +165,8 @@ static void list_view_update(struct list_view *view)
 {
     int num;
 
+    TIMER_INIT_SIMPLE();
+
     /* Save number of currently displayed items. */
     num = view->n_entries;
 
@@ -176,8 +205,11 @@ void list_view_size_hint(const struct list_view *view,
 {
     uint32_t w, h;
 
-    w = (uint32_t) (ARRAY_SIZE(view->glyphs) * extents->max_x_advance);
-    h = view->max_entries * (uint32_t) (1.25 * extents->height);
+    w = (uint32_t)(ARRAY_SIZE(view->glyphs) * extents->max_x_advance);
+    h = view->max_entries * (uint32_t)(1.25 * extents->height);
+
+    /* Account for a separation line between all entries. */
+    h += view->max_entries - 1;
 
     *width = w;
     *height = h;
@@ -253,6 +285,7 @@ void list_view_draw(struct list_view *view)
 {
     TIMER_INIT_SIMPLE();
 
+    list_view_draw_lines(view);
     list_view_update_entry_list(view);
 
     for (int i = 0; i < view->max_entries; ++i)

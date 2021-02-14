@@ -52,6 +52,7 @@ struct list_view {
     struct color bg[2];
     struct color fg_sel;
     struct color bg_sel[2];
+    struct color lines;
 };
 
 void list_view_init(struct list_view *view, cairo_t *cairo);
@@ -98,10 +99,16 @@ static inline void list_view_set_fg_sel(struct list_view *view, uint32_t rgba)
     color_set_u32(&view->fg_sel, rgba);
 }
 
-static inline void list_view_set_bg_sel(struct list_view *view, uint32_t rgba1, uint32_t rgba2)
+static inline void
+list_view_set_bg_sel(struct list_view *view, uint32_t rgba1, uint32_t rgba2)
 {
     color_set_u32(view->bg_sel + 0, rgba1);
     color_set_u32(view->bg_sel + 1, rgba2);
+}
+
+static inline void list_view_set_lines(struct list_view *view, uint32_t rgba)
+{
+    color_set_u32(&view->lines, rgba);
 }
 
 static inline void list_view_set_max_rows(struct list_view *view, int n)
