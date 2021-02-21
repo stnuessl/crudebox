@@ -316,7 +316,9 @@ void widget_do_key_event(struct widget *widget, struct key_event ev)
     case XKB_KEY_NoSymbol:
         break;
     default:
-        widget_event_add_char(widget, ev.symbol);
+        if (isascii(ev.symbol))
+            widget_event_add_char(widget, ev.symbol);
+
         break;
     }
 }
