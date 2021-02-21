@@ -25,7 +25,6 @@
 
 struct item {
     char *name;
-    char *ptr;
     int score;
 };
 

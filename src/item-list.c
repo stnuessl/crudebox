@@ -215,7 +215,6 @@ item_list_do_cache_read(struct item_list *list, int fd, const char *dirs)
             return -1;
 
         items[n].name = str;
-        items[n].ptr = NULL;
         items[n].score = 0;
 
         ++n;
@@ -385,7 +384,6 @@ item_list_do_load(struct item_list *list, const char *cache, char *dirs)
             }
 
             items[n].name = xstrdup(entry->d_name);
-            items[n].ptr = NULL;
             items[n].score = 0;
 
             ++n;
@@ -484,7 +482,6 @@ static void item_list_load_from_stdin(struct item_list *list)
         }
 
         items[n].name = str;
-        items[n].ptr = NULL;
         items[n].score = 0;
 
         ++n;
@@ -570,10 +567,8 @@ void item_list_lookup_clear(struct item_list *list)
         list->lookup[list->strlen--] = '\0';
 
     /* Clear item list */
-    for (int i = 0; i < list->n; ++i) {
-        list->items[i].ptr = NULL;
+    for (int i = 0; i < list->n; ++i)
         list->items[i].score = 0;
-    }
 }
 
 void item_list_lookup_push_back(struct item_list *list, int c)
@@ -587,7 +582,7 @@ void item_list_lookup_push_back(struct item_list *list, int c)
         if (list->items[i].score != list->strlen - 1)
             continue;
 
-        if (!strcasestr(list->items[i].name, list->lookup))
+        if (!strstr(list->items[i].name, list->lookup))
             continue;
 
         list->items[i].score = list->strlen;
