@@ -198,6 +198,7 @@ CFLAGS		:= \
 		-Wextra \
 		-pedantic \
 		-fstack-protector-strong \
+		-fno-plt \
 #		-Werror \
 #		-fpic \
 #		-fno-omit-frame-pointer \
@@ -209,6 +210,7 @@ CXXFLAGS	:= \
 		-Wextra \
 		-pedantic \
 		-fstack-protector-strong \
+		-fno-plt \
 #		-Werror \
 #		-fpic \
 #		-Weffc++ \
