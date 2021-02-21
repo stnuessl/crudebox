@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ static void *thread2_run(void *arg)
     return NULL;
 }
 
+
 int main(int argc, char *argv[])
 {
     struct widget *widget;
@@ -110,13 +111,12 @@ int main(int argc, char *argv[])
     line_edit_set_fg(edit, conf.line_edit.fg);
     line_edit_set_bg(edit, conf.line_edit.bg);
 
-    list_view_set_fg(view, conf.list_view.fg[0]);
-    list_view_set_bg(view,
-                     conf.list_view.bg[0],
-                     conf.list_view.bg[1]);
-    list_view_set_fg_sel(view, conf.list_view.fg[1]);
-    list_view_set_bg_sel(view, conf.list_view.bg[2], conf.list_view.bg[3]);
+    list_view_set_fg(view, conf.list_view.fg);
+    list_view_set_bg(view, conf.list_view.bg1, conf.list_view.bg2);
+    list_view_set_fg_sel(view, conf.list_view.fg_sel);
+    list_view_set_bg_sel(view, conf.list_view.bg1_sel, conf.list_view.bg2_sel);
     list_view_set_max_rows(view, conf.list_view.size);
+    list_view_set_lines(view, conf.list_view.lines);
 
     widget_set_item_list(widget, &items);
 
