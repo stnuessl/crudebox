@@ -200,6 +200,38 @@ static void window_init_widget(struct window *win)
     cairo_surface_destroy(surface);
 }
 
+
+static int window_grab_keyboard_sync(struct window *win)
+{
+    xcb_grab_keyboard_cookie_t cookie;
+    xcb_generic_error_t *error;
+
+    cookie = xcb_grab_keyboard(win->conn,
+                               true,
+                               win->screen->root,
+                               XCB_CURRENT_TIME,
+                               XCB_GRAB_MODE_ASYNC,
+                               XCB_GRAB_MODE_ASYNC);
+
+#ifdef MEM_NOLEAK
+    free(win->grab_keyboard);
+#endif
+    error = NULL;
+
+    win->grab_keyboard = xcb_grab_keyboard_reply(win->conn, cookie, &error);
+    if (error) {
+#ifdef MEM_NOLEAK
+        free(error);
+#endif
+        return -1;
+    }
+
+    if (win->grab_keyboard->status != XCB_GRAB_STATUS_SUCCESS)
+        return -1;
+
+    return 0;
+}
+
 static int window_grab_keyboard_fallback(struct window *win)
 {
     struct timespec ts;
@@ -216,28 +248,9 @@ static int window_grab_keyboard_fallback(struct window *win)
     attempts = 100;
 
     while (attempts--) {
-        xcb_grab_keyboard_cookie_t cookie;
-        xcb_generic_error_t *error;
-
-        cookie = xcb_grab_keyboard(win->conn,
-                                   true,
-                                   win->screen->root,
-                                   XCB_CURRENT_TIME,
-                                   XCB_GRAB_MODE_ASYNC,
-                                   XCB_GRAB_MODE_ASYNC);
-
-#ifdef MEM_NOLEAK
-        free(win->grab_keyboard);
-#endif
-        error = NULL;
-
-        win->grab_keyboard = xcb_grab_keyboard_reply(win->conn, cookie, &error);
-        if (!error && win->grab_keyboard->status == XCB_GRAB_STATUS_SUCCESS)
+        if (!window_grab_keyboard_sync(win))
             return 0;
 
-#ifdef MEM_NOLEAK
-        free(error);
-#endif
         (void) nanosleep(&ts, NULL);
     }
 
@@ -296,6 +309,7 @@ static void window_init_attributes(struct window *win,
 
     if (error || win->grab_keyboard->status != XCB_GRAB_STATUS_SUCCESS) {
         int err;
+
 #ifdef MEM_NOLEAK
         free(error);
 #endif
@@ -303,6 +317,23 @@ static void window_init_attributes(struct window *win,
         if (err < 0)
             die("failed to grab keyboard\n");
     }
+}
+
+static void window_raise(struct window *win)
+{
+    uint16_t mask = XCB_CONFIG_WINDOW_STACK_MODE;
+    uint32_t values[] = { XCB_STACK_MODE_ABOVE };
+    
+    (void) xcb_configure_window(win->conn, win->xid, mask, values);
+}
+
+static void window_grab_focus(struct window *win)
+{ 
+    /* Make sure our window has the input focues */
+    (void) xcb_set_input_focus(win->conn,
+                               XCB_INPUT_FOCUS_POINTER_ROOT,
+                               win->xid,
+                               XCB_CURRENT_TIME);
 }
 
 void window_init(struct window *win, const char *display_name)
@@ -353,58 +384,60 @@ void window_show(struct window *win)
 
 void window_dispatch_events(struct window *win)
 {
+    union event {
+        xcb_generic_event_t *generic;
+        xcb_key_press_event_t *key_press;
+        xcb_key_release_event_t *key_release;
+        xcb_focus_in_event_t *focus;
+        xcb_visibility_notify_event_t *visibility;
+    };
 
     while (1) {
-        xcb_generic_event_t *ev;
-        xcb_keysym_t symbol;
+        union event ev;
         struct key_event key_event;
-        uint16_t mods;
+        xcb_keysym_t sym;
 
         (void) xcb_flush(win->conn);
 
-        ev = xcb_wait_for_event(win->conn);
-        if (unlikely(!ev))
+        ev.generic = xcb_wait_for_event(win->conn);
+        if (unlikely(!ev.generic))
             die("lost x11 connection to the display manager\n");
 
-        switch (ev->response_type & 0x7f) {
+        switch (ev.generic->response_type & 0x7f) {
         case XCB_EXPOSE:
-            /* Make sure our window has the input focues */
-            (void) xcb_set_input_focus(win->conn,
-                                       XCB_INPUT_FOCUS_POINTER_ROOT,
-                                       win->xid,
-                                       XCB_CURRENT_TIME);
+            window_grab_focus(win);
 
             widget_draw(&win->widget);
-
             break;
         case XCB_KEY_PRESS:
-            symbol = xcb_key_press_lookup_keysym(win->symbols, (void *) ev, 0);
+            sym = xcb_key_press_lookup_keysym(win->symbols, ev.key_press, 0);
 
-            if (symbol == XKB_KEY_Escape) {
-#ifdef MEM_NOLEAK
-                free(ev);
-#endif
-                return;
-            }
-
-            mods = ((xcb_button_press_event_t *) ev)->state;
-
-            key_event.symbol = (int) symbol;
-            key_event.shift = !!(mods & XCB_MOD_MASK_SHIFT);
-            key_event.ctrl = !!(mods & XCB_MOD_MASK_CONTROL);
-            key_event.mod1 = !!(mods & XCB_MOD_MASK_1);
-            key_event.mod2 = !!(mods & XCB_MOD_MASK_2);
+            key_event.symbol = (int) sym;
+            key_event.shift = !!(ev.key_press->state & XCB_MOD_MASK_SHIFT);
+            key_event.ctrl = !!(ev.key_press->state & XCB_MOD_MASK_CONTROL);
+            key_event.mod1 = !!(ev.key_press->state & XCB_MOD_MASK_1);
+            key_event.mod2 = !!(ev.key_press->state & XCB_MOD_MASK_2);
 
             widget_do_key_event(&win->widget, key_event);
             break;
         case XCB_KEY_RELEASE:
+            break;
+        case XCB_FOCUS_IN:
+            if (ev.focus->event != win->xid)
+                window_grab_focus(win);
+
+            break;
+        case XCB_VISIBILITY_NOTIFY:
+            if (ev.visibility->state != XCB_VISIBILITY_UNOBSCURED)
+                window_raise(win);
+
             break;
         default:
             break;
         }
 
 #ifdef MEM_NOLEAK
-        free(ev);
+        free(ev.generic);
 #endif
     }
 }
