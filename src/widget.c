@@ -297,7 +297,20 @@ void widget_do_key_event(struct widget *widget, struct key_event ev)
     }
 
     switch (ev.symbol) {
+    case XKB_KEY_Escape:
+        exit(EXIT_SUCCESS);
+        break;
     case XKB_KEY_Control_L:
+        break;
+    case XKB_KEY_Home:
+        /* FALLTHROUGH */
+    case XKB_KEY_Page_Up:
+        list_view_select_first(&widget->list_view);
+        break;
+    case XKB_KEY_End:
+        /* FALLTHROUGH */
+    case XKB_KEY_Page_Down:
+        list_view_select_last(&widget->list_view);
         break;
     case XKB_KEY_ISO_Left_Tab:
     case XKB_KEY_Up:

@@ -240,19 +240,55 @@ void list_view_configure(struct list_view *view,
 
 void list_view_up(struct list_view *view)
 {
+    int prev;
+
     if (view->selected <= 0)
         return;
 
-    list_view_update_entry(view, view->selected--);
+    prev = view->selected--;
+
+    list_view_update_entry(view, prev);
     list_view_update_entry(view, view->selected);
 }
 
 void list_view_down(struct list_view *view)
 {
+    int prev;
+
     if (view->selected >= view->n_entries - 1)
         return;
 
-    list_view_update_entry(view, view->selected++);
+    prev = view->selected++;
+
+    list_view_update_entry(view, prev);
+    list_view_update_entry(view, view->selected);
+}
+
+void list_view_select_first(struct list_view *view)
+{
+    int prev;
+
+    if (view->selected <= 0)
+        return;
+
+    prev = view->selected;
+    view->selected = 0;
+
+    list_view_update_entry(view, prev);
+    list_view_update_entry(view, view->selected);
+}
+
+void list_view_select_last(struct list_view *view)
+{
+    int prev;
+
+    if (view->selected >= view->n_entries - 1)
+        return;
+
+    prev = view->selected;
+    view->selected = view->n_entries - 1;
+
+    list_view_update_entry(view, prev);
     list_view_update_entry(view, view->selected);
 }
 

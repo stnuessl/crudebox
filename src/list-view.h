@@ -129,6 +129,10 @@ void list_view_up(struct list_view *view);
 
 void list_view_down(struct list_view *view);
 
+void list_view_select_first(struct list_view *view);
+
+void list_view_select_last(struct list_view *view);
+
 void list_view_lookup_push_back(struct list_view *view, int c);
 
 void list_view_lookup_pop_back(struct list_view *view);
