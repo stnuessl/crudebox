@@ -51,11 +51,17 @@ pkg-config:
 
 * cairo 
 * freetype2
+* xkbcommon
+
+If __crudebox__ shall be built for __X11__, pkg-config will also need the
 * xcb
 * xcb-keysyms
-* xkbcommon
-* wayland-client (if building for wayland)
-* 
+
+libraries. If instead __crudebox__ shall be built for __wayland__, pkg-config 
+will need the
+* wayland-client
+
+library.
 
 ### Building
 
@@ -110,10 +116,6 @@ Here is an example configuration file that can be used:
 frame = 0x4c7899
 line-width = 2
 
-[frame]
-width = 2
-color = 0x4c7899
-
 [font]
 path = /usr/share/fonts/TTF/Hack-Regular.ttf
 size = 16
@@ -128,11 +130,15 @@ size = 15
 fg = 0xcccccc
 bg1 = 0x282828
 bg2 = 0x222222
-fg-sel 0x285577
-bg1-sel 0x181818
-bg2-sel 0x181818
+fg-sel = 0x285577
+bg1-sel = 0x181818
+bg2-sel = 0x181818
 lines = 0x282828 
 ```
+
+Please note that it's likely that you do not have the font "Hack" installed and
+__crudebox__ will probably not work at all. To fix this, replace the font path 
+in the configuration with a path that is existing on your system.
 
 ### Environment
 
