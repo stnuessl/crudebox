@@ -4,16 +4,20 @@ A simple and fast program launcher.
 
 ## Overview
 * [crudebox (DRAFT)](README.md#crudebox-(draft))
+    * [Overview](README.md#overview)
     * [About](README.md#about)
-        * [Available Features](README.md#available-features)
+        * [Features](README.md#features)
         * [Missing Features](README.md#missing-features)
     * [Installation](README.md#installation)
         * [Prerequisites](README.md#prerequisites)
         * [Dependencies](README.md#dependencies)
+            * [General](README.md#general)
+            * [Arch Linux](README.md#arch-linux)
         * [Building](README.md#building)
         * [Installation](README.md#installation)
         * [Deinstallation](README.md#deinstallation)
     * [Usage](README.md#usage)
+        * [Keyboard Shortcuts](README.md#keyboard-shortcuts)
         * [Configuration File](README.md#configuration-file)
         * [Environment](README.md#environment)
         * [Read from standard input](README.md#read-from-standard-input)
@@ -46,22 +50,42 @@ __Antoine de Saint-Exupery__
 
 ### Dependencies
 
+#### General
+
 When buildung __crudebox__ the following libraries must be available in
 pkg-config:
 
-* cairo 
-* freetype2
-* xkbcommon
+* [cairo (1.17.4)](https://www.cairographics.org/)
+* [freetype2 (2.10.4)](https://www.freetype.org/index.html)
+* [xkbcommon (1.1.0)](https://xkbcommon.org/)
 
 If __crudebox__ shall be built for __X11__, pkg-config will also need the
-* xcb
-* xcb-keysyms
+* [xcb (1.14)](https://xcb.freedesktop.org/)
+* [xcb-keysyms (0.4.0)](https://xcb.freedesktop.org/XcbUtil/)
 
 libraries. If instead __crudebox__ shall be built for __wayland__, pkg-config 
 will need the
-* wayland-client
+* [wayland-client (1.19.0)](https://wayland.freedesktop.org/)
 
-library.
+library. Additionally 
+* [wayland-protocols (1.20)](https://wayland.freedesktop.org/)
+
+needs to be installed to generate the xdg-shell client implementation.
+
+#### Arch Linux
+
+If you wish to use __crudebox__ under __X11__, run the command below
+to install all needed dependencies.
+```
+# pacman -Syu cairo freetype2 libxcb libxkbcommon xcb-util-keysyms
+```
+
+
+If you wish to use __crudebox__ under __Wayland__, run the command below
+to install all needed dependencies.
+```
+# pacman -Syu cairo freetype2 wayland wayland-protocols libxkbcommon
+```
 
 ### Building
 
@@ -92,6 +116,18 @@ or just simply
 The cache and configuration files need to be removed manually.
 
 ## Usage
+
+### Keyboard Shortcuts
+
+| Key           | Alternative           | Description               |
+|---------------|-----------------------|----------------------------
+| Escape        | Ctrl + c              | Quit __crudebox__         |
+| Enter         |                       | Execute selected item     |
+| Shift + Tab   | Arrow Up              | Select previous item      |
+| Tab           | Arrow Down            | Select next item          |
+| Ctrl + w      |                       | Clear __crudebox__ input  |
+| Page Up       | Home                  | Select top item           |
+| Page Down     | End                   | Select bottom item        |
 
 ### Configuration File
 
