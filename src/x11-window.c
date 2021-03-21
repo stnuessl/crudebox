@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020   Steffen Nuessle
+ * Copyright (C) 2021   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,8 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifdef USE_X11
 
 #include <errno.h>
 #include <stdbool.h>
@@ -33,6 +31,8 @@
 #include "util/macro.h"
 
 #define WINDOW_NAME "crudebox"
+
+#ifdef USE_X11
 
 struct cookies {
     xcb_intern_atom_cookie_t net_wm_window_type;
@@ -200,7 +200,6 @@ static void window_init_widget(struct window *win)
     cairo_surface_destroy(surface);
 }
 
-
 static int window_grab_keyboard_sync(struct window *win)
 {
     xcb_grab_keyboard_cookie_t cookie;
@@ -322,13 +321,13 @@ static void window_init_attributes(struct window *win,
 static void window_raise(struct window *win)
 {
     uint16_t mask = XCB_CONFIG_WINDOW_STACK_MODE;
-    uint32_t values[] = { XCB_STACK_MODE_ABOVE };
-    
+    uint32_t values[] = {XCB_STACK_MODE_ABOVE};
+
     (void) xcb_configure_window(win->conn, win->xid, mask, values);
 }
 
 static void window_grab_focus(struct window *win)
-{ 
+{
     /* Make sure our window has the input focues */
     (void) xcb_set_input_focus(win->conn,
                                XCB_INPUT_FOCUS_POINTER_ROOT,

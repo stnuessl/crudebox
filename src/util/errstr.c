@@ -15,9 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <limits.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include "errstr.h"
 #include "macro.h"
@@ -169,4 +169,3 @@ const char *errstr(int code)
 
     return names[code];
 }
-

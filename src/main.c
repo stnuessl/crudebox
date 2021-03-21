@@ -60,7 +60,6 @@ static void *thread2_run(void *arg)
     return NULL;
 }
 
-
 int main(int argc, char *argv[])
 {
     struct widget *widget;
