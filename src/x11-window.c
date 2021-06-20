@@ -24,15 +24,12 @@
 #include <xkbcommon/xkbcommon.h>
 
 #include "timer.h"
-#include "widget.h"
 #include "window.h"
 
 #include "util/die.h"
 #include "util/macro.h"
 
-#define WINDOW_NAME "crudebox"
-
-#ifdef USE_X11
+#ifdef CONFIG_USE_X11
 
 struct cookies {
     xcb_intern_atom_cookie_t net_wm_window_type;
@@ -441,4 +438,4 @@ void window_dispatch_events(struct window *win)
     }
 }
 
-#endif /* USE_X11 */
+#endif /* CONFIG_USE_X11 */

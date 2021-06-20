@@ -18,7 +18,9 @@
 #ifndef WINDOW_H_
 #define WINDOW_H_
 
-#ifdef USE_X11
+#define WINDOW_NAME "crudebox"
+
+#ifdef CONFIG_USE_X11
 
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
@@ -44,12 +46,38 @@ struct window {
     uint32_t height;
 };
 
-#elif USE_WAYLAND
+#elif CONFIG_USE_WAYLAND
 
 #include <wayland-client.h>
 
+#include "widget.h"
+
 struct window {
+    struct widget widget;
+
     struct wl_display *display;
+    struct wl_registry *registry;
+    struct wl_compositor *compositor;
+    struct wl_shell *shell;
+    struct wl_shm *shm;
+    struct wl_buffer *buffer;
+    struct wl_seat *seat;
+    struct wl_output *output;
+    struct wl_keyboard *keyboard;
+    struct xdg_wm_base *xdg_wm;
+
+    struct wl_surface *wl_surface;
+    struct xdg_surface *xdg_surface;
+    struct xdg_toplevel *xdg_toplevel;
+
+    void *mem;
+    size_t size;
+
+    int epoll_fd;
+    int timer_fd;
+
+    uint32_t width;
+    uint32_t height;
 };
 
 #else

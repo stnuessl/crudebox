@@ -38,6 +38,7 @@ __Antoine de Saint-Exupery__
 ### Missing Features
 
 * No utf-8 support
+* No scrolling
 
 ## Installation
 

@@ -22,7 +22,7 @@
 # THE SOFTWARE.
 #
 
-CC			:= /usr/bin/clang
+CC			:= /usr/bin/clang 
 #CXX			:= /usr/bin/clang++
 
 #
@@ -42,18 +42,26 @@ $(error No binary name specified)
 endif
 
 #
+# Specifiy the additional wayland protocols
+#
+XDG_SHELL	:= /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
+XDG_SRC		:= gen/xdg-shell.c
+XDG_HDR		:= gen/xdg-shell-client.h
+
+#
 # Specify all source files. The paths should be relative to this file.
 #
-SRC			:= $(shell find ./ -iname "*.c")
-# SRC		:= $(shell find ./ -iname "*.cpp")
-# SRC		:= $(shell find ./ -iname "*.c" -o -iname "*.cpp")
+SRC			:= \
+		$(shell find src/ -iname "*.c") \
+		$(XDG_SRC)
 
 # 
-# Optional: This variable is used by the 'format' and 'tags'  targets 
+# Optional: This variable is used by the 'format' and 'tags' targets 
 # which are not necessary to build the target.
 #
-HDR			:= $(shell find ./ -iname "*.h")
-# HDR		:= $(shell find ./ -iname "*.hpp")
+HDR			:= \
+		$(shell find src/ -iname "*.h") \
+		$(XDG_HDR)
 
 ifndef SRC
 $(error No source files specified)
@@ -128,6 +136,7 @@ JSON		:= $(patsubst %.o, %.json, $(OBJS))
 # Add additional include paths
 #
 INC		:= \
+	-Igen/
 
 #
 # Add used libraries which are configurable with pkg-config
@@ -177,7 +186,9 @@ CPPFLAGS	= \
 		-MF $(patsubst %.o, %.d, $@) \
 		-MT $@  \
 		-D_GNU_SOURCE \
-		-DUSE_X11 \
+		-DCONFIG_USE_WAYLAND \
+#		-DCONFIG_USE_X11 \
+
 #
 # If clang is used, generate a compilation database for each
 # processed translation unit.
@@ -289,6 +300,8 @@ $(TARGET): $(OBJS)
 
 -include $(DEPS)
 
+src/wl-window.c: $(XDG_HDR)
+
 $(BUILD_DIR)/%.o: %.c
 	@printf "$(BLUE)Building: $@$(RESET)\n"
 	$(SUPP)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
@@ -297,19 +310,27 @@ $(BUILD_DIR)/%.o: %.c
 #	@printf "$(BLUE)Building: $@$(RESET)\n"
 #	$(SUPP)$(CXX) -c -o $@ $(CPPFLAGS) $(CXXFLAGS) $<
 
+$(XDG_SRC): $(XDG_SHELL)
+	@printf "$(CYAN)Generating [ $@ ]$(RESET)\n"
+	$(SUPP)wayland-scanner private-code $< $@
+
+$(XDG_HDR): $(XDG_SHELL)
+	@printf "$(CYAN)Generating [ $@ ]$(RESET)\n"
+	$(SUPP)wayland-scanner client-header $< $@
+
 $(OBJS): | $(DIRS)
 
 $(DIRS):
-	mkdir -p $(DIRS)
+	mkdir -p $@
 
 compile_commands.json: $(OBJS)
 	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(JSON) | json_pp > $@
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(XDG_SRC) $(XDG_HDR) $(BUILD_DIR)
 
 format:
-	clang-format -i $(HDR) $(SRC)
+	$(SHELL) scripts/mk-format.sh
 
 tags: $(HDR) $(SRC)
 	ctags -f tags $^
