@@ -34,9 +34,9 @@
 FILES=$(git diff --name-only --cached --diff-filter=AM | grep "\.[ch]$")
 
 # Format all found files
-clang-format -i "${FILES}"
+clang-format -i ${FILES}
 
 # Ensure that the changes to these files are also added to the staging area
-git add "${FILES}"
+git add ${FILES}
 
 exit 0
