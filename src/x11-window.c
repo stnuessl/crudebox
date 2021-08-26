@@ -412,7 +412,6 @@ void window_dispatch_events(struct window *win)
             key_event.shift = !!(ev.key_press->state & XCB_MOD_MASK_SHIFT);
             key_event.ctrl = !!(ev.key_press->state & XCB_MOD_MASK_CONTROL);
             key_event.mod1 = !!(ev.key_press->state & XCB_MOD_MASK_1);
-            key_event.mod2 = !!(ev.key_press->state & XCB_MOD_MASK_2);
 
             widget_do_key_event(&win->widget, key_event);
             break;

@@ -47,7 +47,7 @@ struct line_edit {
     struct color bg;
 };
 
-void line_edit_init(struct line_edit *edit, cairo_t *cairo);
+void line_edit_init(struct line_edit *edit);
 
 void line_edit_destroy(struct line_edit *edit);
 
@@ -62,6 +62,11 @@ void line_edit_configure(struct line_edit *edit,
                          uint32_t y1,
                          uint32_t x2,
                          uint32_t y2);
+
+static inline void line_edit_set_cairo(struct line_edit *edit, cairo_t *cairo)
+{
+    edit->cairo = cairo;
+}
 
 static inline uint32_t line_edit_width(const struct line_edit *edit)
 {

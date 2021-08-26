@@ -51,9 +51,11 @@ struct window {
 #include <wayland-client.h>
 
 #include "widget.h"
+#include "xkb.h"
 
 struct window {
     struct widget widget;
+    struct xkb xkb;
 
     struct wl_display *display;
     struct wl_registry *registry;
@@ -78,6 +80,10 @@ struct window {
 
     uint32_t width;
     uint32_t height;
+
+    xkb_keysym_t symbol;
+    int32_t rate;
+    int32_t delay;
 };
 
 #else

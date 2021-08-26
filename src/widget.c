@@ -120,30 +120,36 @@ __attribute__((noreturn)) static void widget_exec_item(struct widget *widget)
     die("failed to execute \"%s\"\n", file);
 }
 
-void widget_init(struct widget *widget, cairo_surface_t *surface)
+void widget_init(struct widget *widget)
 {
+    cairo_surface_t *surface;
     FT_Error error;
-    double x1, y1, x2, y2;
 
     TIMER_INIT_SIMPLE();
+
+    /*
+     * Create empty cairo device which can be configured until the correct
+     * window surface with the correct size will be available.
+     */
+    surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 0, 0);
+    if (unlikely(cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS))
+        die("failed to create empty image surface");
+
+    widget->cairo = cairo_create(surface);
+    if (unlikely(cairo_status(widget->cairo) != CAIRO_STATUS_SUCCESS))
+        die("failed to create empty cairo device");
 
     error = FT_Init_FreeType(&widget->freetype);
     if (unlikely(error))
         die("failed to initialize font library\n");
 
-    widget->surface = surface;
+    line_edit_init(&widget->line_edit);
+    line_edit_set_cairo(&widget->line_edit, widget->cairo);
 
-    widget->cairo = cairo_create(surface);
-    if (unlikely(cairo_status(widget->cairo) != CAIRO_STATUS_SUCCESS))
-        die("failed to initialize cairo graphics library\n");
+    list_view_init(&widget->list_view);
+    list_view_set_cairo(&widget->list_view, widget->cairo);
 
-    cairo_clip_extents(widget->cairo, &x1, &y1, &x2, &y2);
-
-    widget->width = (uint32_t)(x2 - x1);
-    widget->height = (uint32_t)(y2 - y1);
-
-    line_edit_init(&widget->line_edit, widget->cairo);
-    list_view_init(&widget->list_view, widget->cairo);
+    cairo_surface_destroy(surface);
 }
 
 void widget_destroy(struct widget *widget)
@@ -151,11 +157,43 @@ void widget_destroy(struct widget *widget)
 #ifdef MEM_NOLEAK
     list_view_destroy(&widget->list_view);
     line_edit_destroy(&widget->line_edit);
+
     cairo_destroy(widget->cairo);
+
     FT_Done_FreeType(widget->freetype);
 #else
     (void) widget;
 #endif
+}
+
+void widget_set_surface(struct widget *widget, cairo_surface_t *surface)
+{
+    cairo_t *cairo;
+    cairo_font_extents_t extents;
+    double x1, y1, x2, y2;
+
+    cairo = cairo_create(surface);
+    if (unlikely(cairo_status(cairo) != CAIRO_STATUS_SUCCESS))
+        die("failed to initialize cairo graphics library\n");
+
+    cairo_set_font_face(cairo, cairo_get_font_face(widget->cairo));
+    cairo_set_scaled_font(cairo, cairo_get_scaled_font(widget->cairo));
+
+    cairo_destroy(widget->cairo);
+    widget->cairo = cairo;
+
+    line_edit_set_cairo(&widget->line_edit, widget->cairo);
+    list_view_set_cairo(&widget->list_view, widget->cairo);
+
+    cairo_clip_extents(widget->cairo, &x1, &y1, &x2, &y2);
+
+    widget->width = (uint32_t) (x2 - x1);
+    widget->height = (uint32_t) (y2 - y1);
+
+    cairo_font_extents(widget->cairo, &extents);
+
+    widget_configure_line_edit(widget, &extents);
+    widget_configure_list_view(widget, &extents);
 }
 
 void widget_get_size_hint(const struct widget *widget,
@@ -188,33 +226,23 @@ void widget_set_font(struct widget *widget, const char *path)
 {
     FT_Face ft_face;
     FT_Error error;
-    cairo_font_face_t *cr_face;
+    cairo_font_face_t *font_face;
 
     error = FT_New_Face(widget->freetype, path, 0, &ft_face);
-    if (error)
+    if (unlikely(error))
         die("failed to create freetype font face for \"%s\"\n", path);
 
-    cr_face = cairo_ft_font_face_create_for_ft_face(ft_face, FT_LOAD_DEFAULT);
-    if (cairo_font_face_status(cr_face) != CAIRO_STATUS_SUCCESS)
+    font_face = cairo_ft_font_face_create_for_ft_face(ft_face, FT_LOAD_DEFAULT);
+    if (unlikely(cairo_font_face_status(font_face) != CAIRO_STATUS_SUCCESS))
         die("failed to create cairo font face for \"%s\"\n", path);
 
-    if (widget->face)
+    if (unlikely(widget->face))
         FT_Done_Face(widget->face);
 
+    cairo_set_font_face(widget->cairo, font_face);
+    cairo_font_face_destroy(font_face);
+
     widget->face = ft_face;
-
-    cairo_set_font_face(widget->cairo, cr_face);
-    cairo_font_face_destroy(cr_face);
-}
-
-void widget_set_max_rows(struct widget *widget, int num)
-{
-    list_view_set_max_rows(&widget->list_view, num);
-}
-
-void widget_set_item_list(struct widget *widget, struct item_list *list)
-{
-    list_view_set_item_list(&widget->list_view, list);
 }
 
 void widget_draw(struct widget *widget)
@@ -248,21 +276,6 @@ void widget_draw(struct widget *widget)
     /* Draw individual widgets */
     line_edit_draw(&widget->line_edit);
     list_view_draw(&widget->list_view);
-}
-
-void widget_set_size(struct widget *widget, uint32_t width, uint32_t height)
-{
-    cairo_font_extents_t extents;
-
-    cairo_xcb_surface_set_size(widget->surface, (int) width, (int) height);
-
-    widget->width = width;
-    widget->height = height;
-
-    cairo_font_extents(widget->cairo, &extents);
-
-    widget_configure_line_edit(widget, &extents);
-    widget_configure_list_view(widget, &extents);
 }
 
 void widget_do_key_event(struct widget *widget, struct key_event ev)

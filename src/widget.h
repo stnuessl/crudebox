@@ -39,14 +39,12 @@ struct key_event {
     uint8_t shift : 1;
     uint8_t ctrl : 1;
     uint8_t mod1 : 1;
-    uint8_t mod2 : 1;
 };
 
 struct widget {
     FT_Library freetype;
     FT_Face face;
 
-    cairo_surface_t *surface;
     cairo_t *cairo;
 
     uint32_t width;
@@ -61,9 +59,11 @@ struct widget {
     struct list_view list_view;
 };
 
-void widget_init(struct widget *widget, cairo_surface_t *surface);
+void widget_init(struct widget *widget);
 
 void widget_destroy(struct widget *widget);
+
+void widget_set_surface(struct widget *widget, cairo_surface_t *surface);
 
 static inline struct line_edit *widget_line_edit(struct widget *widget)
 {
@@ -101,9 +101,16 @@ static inline void widget_set_print(struct widget *widget, bool print)
     widget->print = print;
 }
 
-void widget_set_max_rows(struct widget *widget, int num);
+static inline void widget_set_max_rows(struct widget *widget, int num)
+{
+    list_view_set_max_rows(&widget->list_view, num);
+}
 
-void widget_set_item_list(struct widget *widget, struct item_list *list);
+static inline void widget_set_item_list(struct widget *widget,
+                                        struct item_list *list)
+{
+    list_view_set_item_list(&widget->list_view, list);
+}
 
 void widget_set_size(struct widget *widget, uint32_t width, uint32_t height);
 

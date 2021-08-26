@@ -55,9 +55,14 @@ struct list_view {
     struct color lines;
 };
 
-void list_view_init(struct list_view *view, cairo_t *cairo);
+void list_view_init(struct list_view *view);
 
 void list_view_destroy(struct list_view *view);
+
+static inline void list_view_set_cairo(struct list_view *view, cairo_t *cairo)
+{
+    view->cairo = cairo;
+}
 
 static inline void list_view_set_item_list(struct list_view *view,
                                            struct item_list *list)

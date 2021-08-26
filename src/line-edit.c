@@ -90,11 +90,9 @@ static void line_edit_update_glyphs(struct line_edit *edit)
         cairo_glyph_free(glyphs);
 }
 
-void line_edit_init(struct line_edit *edit, cairo_t *cairo)
+void line_edit_init(struct line_edit *edit)
 {
     memset(edit, 0, sizeof(*edit));
-
-    edit->cairo = cairo;
 }
 
 void line_edit_destroy(struct line_edit *edit)
@@ -114,8 +112,8 @@ void line_edit_size_hint(const struct line_edit *edit,
      * This means we have to reserve space for all the glyphs in the text
      * buffer plus two additional non-visible characters for space padding.
      */
-    w = (uint32_t)((ARRAY_SIZE(edit->str) + 2) * ext->max_x_advance);
-    h = 1 + (uint32_t)(1.5 * ext->height);
+    w = (uint32_t) ((ARRAY_SIZE(edit->str) + 2) * ext->max_x_advance);
+    h = 1 + (uint32_t) (1.5 * ext->height);
 
     *width = w;
     *height = h;

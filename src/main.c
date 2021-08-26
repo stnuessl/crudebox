@@ -101,13 +101,11 @@ int main(int argc, char *argv[])
     view = widget_list_view(widget);
 
     /* Apply configuration to the elements */
-#if 0
     widget_set_font(widget, conf.font.path);
     widget_set_font_size(widget, conf.font.size);
     widget_set_frame_color(widget, conf.widget.frame);
     widget_set_line_width(widget, conf.widget.line_width);
     widget_set_print(widget, print);
-#endif
 
     line_edit_set_fg(edit, conf.line_edit.fg);
     line_edit_set_bg(edit, conf.line_edit.bg);
@@ -121,7 +119,6 @@ int main(int argc, char *argv[])
 
     widget_set_item_list(widget, &items);
 
-    window_update_size(&win);
     window_show(&win);
 
     window_dispatch_events(&win);

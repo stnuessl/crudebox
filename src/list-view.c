@@ -182,11 +182,9 @@ static void list_view_update(struct list_view *view)
         list_view_update_entry(view, i);
 }
 
-void list_view_init(struct list_view *view, cairo_t *cairo)
+void list_view_init(struct list_view *view)
 {
     memset(view, 0, sizeof(*view));
-
-    view->cairo = cairo;
 }
 
 void list_view_destroy(struct list_view *view)
@@ -205,8 +203,8 @@ void list_view_size_hint(const struct list_view *view,
 {
     uint32_t w, h;
 
-    w = (uint32_t)(ARRAY_SIZE(view->glyphs) * extents->max_x_advance);
-    h = view->max_entries * (uint32_t)(1.25 * extents->height);
+    w = (uint32_t) (ARRAY_SIZE(view->glyphs) * extents->max_x_advance);
+    h = view->max_entries * (uint32_t) (1.25 * extents->height);
 
     /* Account for a separation line between all entries. */
     h += view->max_entries - 1;
@@ -235,7 +233,7 @@ void list_view_configure(struct list_view *view,
     val += (view->y2 - view->y1) / view->max_entries;
 
     view->glyph_x = view->x1 + (uint32_t) ext->max_x_advance;
-    view->glyph_y = view->y1 + (uint32_t)(1 + val / 2.0);
+    view->glyph_y = view->y1 + (uint32_t) (1 + val / 2.0);
 }
 
 void list_view_up(struct list_view *view)

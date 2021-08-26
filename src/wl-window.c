@@ -26,13 +26,17 @@
 
 #include "timer.h"
 #include "window.h"
+#include "xkb.h"
 
 #include "util/die.h"
 #include "util/errstr.h"
+#include "util/io-util.h"
 #include "util/macro.h"
 #include "util/string-util.h"
 
 #ifdef CONFIG_USE_WAYLAND
+
+#define WL_WINDOW_BYTES_PER_PIXEL 4
 
 static void window_xdg_toplevel_surface_configure(void *data,
                                                   struct xdg_toplevel *toplevel,
@@ -41,19 +45,12 @@ static void window_xdg_toplevel_surface_configure(void *data,
                                                   struct wl_array *states)
 {
     struct window *win = data;
-    enum xdg_toplevel_state *iter;
 
+    (void) win;
     (void) toplevel;
-
-    if (width == 0 || height == 0)
-        return;
-
-    wl_array_for_each(iter, states)
-    {
-        printf("%u\n", *iter);
-    }
-
-    printf("xdg_toplevel_surface_configure()\n");
+    (void) width;
+    (void) height;
+    (void) states;
 }
 
 static void window_xdg_toplevel_surface_close(void *data,
@@ -70,68 +67,15 @@ static const struct xdg_toplevel_listener xdg_toplevel_callbacks = {
     .close = &window_xdg_toplevel_surface_close,
 };
 
-static inline int32_t window_buffer_stride(const struct window *win)
-{
-    return win->width * 4;
-}
-
-static void window_init_widget(struct window *window);
-
 static void window_xdg_surface_configure(void *data,
                                          struct xdg_surface *surface,
                                          uint32_t serial)
 {
     struct window *win = data;
-    struct wl_shm_pool *pool;
-    struct wl_buffer *buffer;
-    void *mem;
-    int fd, err;
-    uint32_t stride;
-    off_t size;
 
     (void) surface;
 
-    TIMER_INIT_SIMPLE();
-
     xdg_surface_ack_configure(win->xdg_surface, serial);
-
-    /* Create sharable memory for drawing */
-    fd = memfd_create("crudebox", MFD_CLOEXEC);
-    if (fd < 0)
-        die("failed to create memfd - %s\n", errstr(errno));
-
-    stride = window_buffer_stride(win);
-    size = stride * win->height;
-
-    err = ftruncate(fd, size);
-    if (err < 0)
-        die("failed to allocate memfd memory - %s\n", errstr(errno));
-
-    mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (mem == MAP_FAILED)
-        die("failed to memory map memfd - %s\n", errstr(errno));
-
-    pool = wl_shm_create_pool(win->shm, fd, (int32_t) size);
-    if (!pool)
-        die("failed to create shared memory pool\n");
-
-    buffer = wl_shm_pool_create_buffer(pool,
-                                       0,
-                                       win->width,
-                                       win->height,
-                                       stride,
-                                       WL_SHM_FORMAT_XRGB8888);
-    if (!buffer)
-        die("failed to create wayland buffer\n");
-
-    wl_shm_pool_destroy(pool);
-    close(fd);
-
-    win->mem = mem;
-    win->size = size;
-
-    printf("initial configure\n");
-    window_init_widget(win);
 }
 
 static const struct xdg_surface_listener xdg_surface_callbacks = {
@@ -273,6 +217,167 @@ static void window_bind_shm(struct window *win, uint32_t name, uint32_t version)
         die("failed to create binding\n");
 }
 
+static void window_keyboard_keymap(void *data,
+                                   struct wl_keyboard *keyboard,
+                                   uint32_t format,
+                                   int fd,
+                                   uint32_t size)
+{
+    struct window *win = data;
+    void *mem;
+    int err;
+
+    (void) keyboard;
+
+    if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1)
+        goto out;
+
+    mem = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (unlikely(mem == MAP_FAILED))
+        die("failed to memory map received keymap data: %s\n", errstr(errno));
+
+    err = xkb_set_keymap(&win->xkb, mem);
+    if (unlikely(err < 0))
+        die("failed to set received keymap data\n");
+
+    munmap(mem, size);
+
+out:
+    close(fd);
+}
+
+static void window_keyboard_enter(void *data,
+                                  struct wl_keyboard *keyboard,
+                                  uint32_t serial,
+                                  struct wl_surface *surface,
+                                  struct wl_array *keys)
+{
+    struct window *win = data;
+
+    (void) win;
+    (void) keyboard;
+    (void) serial;
+    (void) surface;
+    (void) keys;
+}
+
+static void window_keyboard_leave(void *data,
+                                  struct wl_keyboard *keyboard,
+                                  uint32_t serial,
+                                  struct wl_surface *surface)
+{
+    struct window *win = data;
+
+    (void) win;
+    (void) keyboard;
+    (void) serial;
+    (void) surface;
+}
+
+static void window_keyboard_key(void *data,
+                                struct wl_keyboard *keyboard,
+                                uint32_t serial,
+                                uint32_t time,
+                                uint32_t key,
+                                uint32_t state)
+{
+    struct window *win = data;
+    struct itimerspec ts;
+    struct key_event ev;
+    xkb_keysym_t symbol;
+
+    (void) keyboard;
+    (void) serial;
+    (void) time;
+
+    if (!win->buffer)
+        return;
+
+    symbol = xkb_get_sym(&win->xkb, key);
+
+    if (xkb_keysym_is_modifier(symbol))
+        return;
+
+    switch (state) {
+    case WL_KEYBOARD_KEY_STATE_PRESSED:
+
+        ts.it_interval.tv_sec = 0;
+        ts.it_interval.tv_nsec = win->rate;
+        ts.it_value.tv_sec = 0;
+        ts.it_value.tv_nsec = win->delay;
+
+        ev.symbol = symbol;
+        ev.ctrl = xkb_mod_active(&win->xkb, XKB_MOD_NAME_CTRL);
+        ev.shift = xkb_mod_active(&win->xkb, XKB_MOD_NAME_SHIFT);
+        ev.mod1 = xkb_mod_active(&win->xkb, XKB_MOD_NAME_ALT);
+
+        widget_do_key_event(&win->widget, ev);
+
+        win->symbol = symbol;
+        break;
+    case WL_KEYBOARD_KEY_STATE_RELEASED:
+
+        ts.it_interval.tv_sec = 0;
+        ts.it_interval.tv_nsec = 0;
+        ts.it_value.tv_sec = 0;
+        ts.it_value.tv_nsec = 0;
+
+        (void) timerfd_settime(win->timer_fd, CLOCK_MONOTONIC, &ts, NULL);
+
+        break;
+    default:
+        break;
+    }
+
+    widget_draw(&win->widget);
+    wl_surface_attach(win->wl_surface, win->buffer, 0, 0);
+    wl_surface_damage_buffer(win->wl_surface, 0, 0, win->width, win->height);
+    wl_surface_commit(win->wl_surface);
+}
+
+static void window_keyboard_modifiers(void *data,
+                                      struct wl_keyboard *keyboard,
+                                      uint32_t serial,
+                                      uint32_t mods_depressed,
+                                      uint32_t mods_latched,
+                                      uint32_t mods_locked,
+                                      uint32_t group)
+{
+    struct window *win = data;
+
+    (void) keyboard;
+    (void) serial;
+
+    xkb_state_update(&win->xkb,
+                     mods_depressed,
+                     mods_latched,
+                     mods_locked,
+                     group);
+}
+
+static void window_keyboard_repeat_info(void *data,
+                                        struct wl_keyboard *keyboard,
+                                        int32_t rate,
+                                        int32_t delay)
+{
+    struct window *win = data;
+
+    (void) keyboard;
+
+    /* Convert to nanoseconds for easy use with the timerspec objects */
+    win->rate = 1000 * 1000 * 1000 / rate;
+    win->delay = 1000 * 1000 * delay;
+}
+
+static const struct wl_keyboard_listener window_keyboard_callbacks = {
+    .keymap = &window_keyboard_keymap,
+    .enter = &window_keyboard_enter,
+    .leave = &window_keyboard_leave,
+    .key = &window_keyboard_key,
+    .modifiers = &window_keyboard_modifiers,
+    .repeat_info = &window_keyboard_repeat_info,
+};
+
 static void
 window_bind_seat(struct window *win, uint32_t name, uint32_t version)
 {
@@ -284,6 +389,12 @@ window_bind_seat(struct window *win, uint32_t name, uint32_t version)
 
     if (!win->seat)
         die("failed to create binding\n");
+
+    win->keyboard = wl_seat_get_keyboard(win->seat);
+    if (!win->keyboard)
+        die("failed to initialize keyboard\n");
+
+    wl_keyboard_add_listener(win->keyboard, &window_keyboard_callbacks, win);
 }
 
 static void
@@ -401,9 +512,12 @@ static void window_init_wayland(struct window *win, const char *display_name)
     xdg_toplevel_add_listener(win->xdg_toplevel, &xdg_toplevel_callbacks, win);
 
     xdg_toplevel_set_title(win->xdg_toplevel, WINDOW_NAME);
+    xdg_toplevel_set_app_id(win->xdg_toplevel, WINDOW_NAME);
 
     wl_surface_commit(win->wl_surface);
-    wl_display_flush(win->display);
+
+    /* Dispatch server events to initialize surfaces */
+    wl_display_roundtrip(win->display);
 }
 
 struct window_event {
@@ -429,7 +543,21 @@ static void window_dispatch_wayland_event(struct window *win)
 
 static void window_dispatch_timer_event(struct window *win)
 {
-    (void) win;
+    struct key_event ev;
+    uint64_t value;
+    int err;
+
+    /* Clear all timeouts */
+    err = io_util_read(win->timer_fd, &value, sizeof(value));
+    if (err < 0)
+        die("io_util_read: %s\n", errstr(errno));
+
+    ev.symbol = win->symbol;
+    ev.ctrl = xkb_mod_active(&win->xkb, XKB_MOD_NAME_CTRL);
+    ev.shift = xkb_mod_active(&win->xkb, XKB_MOD_NAME_SHIFT);
+    ev.mod1 = xkb_mod_active(&win->xkb, XKB_MOD_NAME_ALT);
+
+    widget_do_key_event(&win->widget, ev);
 }
 
 static struct window_event window_wayland_event = {
@@ -469,16 +597,56 @@ static void window_init_events(struct window *win)
     if (err < 0)
         die("epoll_ctl: failed to add timer events: %s\n", errstr(errno));
 }
-
-static void window_init_widget(struct window *win)
+static bool window_widget_surface_initialized(const struct window *win)
 {
+    return win->mem != NULL;
+}
+
+static void window_set_widget_surface(struct window *win)
+{
+    struct wl_shm_pool *pool;
     cairo_surface_t *surface;
+    int fd, err;
     int32_t stride;
 
     TIMER_INIT_SIMPLE();
 
-    stride = window_buffer_stride(win);
+    widget_get_size_hint(&win->widget, &win->width, &win->height);
 
+    stride = win->width * WL_WINDOW_BYTES_PER_PIXEL;
+    win->size = stride * win->height;
+
+    /* Create sharable memory for drawing */
+    fd = memfd_create("crudebox", MFD_CLOEXEC);
+    if (fd < 0)
+        die("failed to create memfd - %s\n", errstr(errno));
+
+    err = ftruncate(fd, (off_t) win->size);
+    if (err < 0)
+        die("failed to allocate memfd memory - %s\n", errstr(errno));
+
+    win->mem = mmap(NULL, win->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (win->mem == MAP_FAILED)
+        die("failed to memory map memfd - %s\n", errstr(errno));
+
+    pool = wl_shm_create_pool(win->shm, fd, (int32_t) win->size);
+    if (!pool)
+        die("failed to create shared memory pool\n");
+
+    win->buffer = wl_shm_pool_create_buffer(pool,
+                                            0,
+                                            win->width,
+                                            win->height,
+                                            stride,
+                                            WL_SHM_FORMAT_XRGB8888);
+    if (!win->buffer)
+        die("failed to create wayland buffer\n");
+
+    /* Release temporary allocated ressources */
+    wl_shm_pool_destroy(pool);
+    close(fd);
+
+    /* Create cairo surface for rendering the widget */
     surface = cairo_image_surface_create_for_data(win->mem,
                                                   CAIRO_FORMAT_ARGB32,
                                                   win->width,
@@ -488,7 +656,7 @@ static void window_init_widget(struct window *win)
     if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
         die("failed to create cairo surface for rendering\n");
 
-    widget_init(&win->widget, surface);
+    widget_set_surface(&win->widget, surface);
 
     cairo_surface_destroy(surface);
 }
@@ -501,6 +669,7 @@ void window_init(struct window *win, const char *display_name)
 
     window_init_wayland(win, display_name);
     window_init_events(win);
+    widget_init(&win->widget);
 }
 
 void window_destroy(struct window *win)
@@ -520,14 +689,14 @@ void window_destroy(struct window *win)
 #endif
 }
 
-void window_update_size(struct window *win)
-{
-    (void) win;
-}
-
 void window_show(struct window *win)
 {
-    (void) win;
+    if (!window_widget_surface_initialized(win))
+        window_set_widget_surface(win);
+
+    widget_draw(&win->widget);
+    wl_surface_attach(win->wl_surface, win->buffer, 0, 0);
+    wl_surface_commit(win->wl_surface);
 }
 
 void window_dispatch_events(struct window *win)
