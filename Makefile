@@ -262,7 +262,7 @@ RESET		:= \e[0m
 #
 # Get the MD5 hash value of a file passed as an argument.
 #
-md5sum		= $$(md5sum $(1) | cut -f1 -d " ")
+checksum		= $$(sha256sum $(1) | cut -f1 -d " ")
 
 
 #
@@ -296,7 +296,7 @@ $(TARGET): $(OBJS)
 	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
 	$(SUPP)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 #	$(SUPP)$(CXX) -o $@ $^ $(LDFLAGS) $(LDLIBS)
-	@printf "$(GREEN)Built target [ $@ ]: $(call md5sum, $@)$(RESET)\n"
+	@printf "$(GREEN)Built target [ $@ ]: $(call checksum, $@)$(RESET)\n"
 
 -include $(DEPS)
 
@@ -357,3 +357,4 @@ uninstall:
 	format \
 	tags \
 	$(DIRS)
+
