@@ -247,6 +247,12 @@ CXXFLAGS	+= $(shell pkg-config --cflags $(PKGCONF))
 LDLIBS		+= $(shell pkg-config --libs $(PKGCONF))
 endif
 
+# Append extra arguments passed on the command-line
+CPPFLAGS	+= $(EXTRA_CPPFLAGS)
+CFLAGS		+= $(EXTRA_CFLAGS)
+CXXFLAGS	+= $(EXTRA_CXXFLAGS)
+LDFLAGS		+= $(EXTRA_LDFLAGS)
+
 
 #
 # Setting terminal colors
