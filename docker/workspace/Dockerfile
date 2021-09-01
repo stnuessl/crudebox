@@ -1,6 +1,6 @@
 #
 # Dockerfile
-# Creates a docker image suitable to build crudebox
+# Creates a docker image for developing crudebox.
 #
 
 FROM archlinux:base
@@ -23,3 +23,4 @@ xcb-util-keysyms
 RUN useradd --create-home --uid 1000 --shell /usr/bin/bash docker
 USER docker
 CMD /usr/bin/bash
+
