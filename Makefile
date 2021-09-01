@@ -186,8 +186,8 @@ CPPFLAGS	= \
 		-MF $(patsubst %.o, %.d, $@) \
 		-MT $@  \
 		-D_GNU_SOURCE \
-		-DCONFIG_USE_WAYLAND \
-#		-DCONFIG_USE_X11 \
+		-DCONFIG_USE_X11 \
+#		-DCONFIG_USE_WAYLAND \
 
 #
 # If clang is used, generate a compilation database for each
@@ -347,10 +347,38 @@ install: $(TARGET)
 uninstall:
 	rm -f $(DESTDIR)$(BIN)
 
+build/docker-workspace-image: docker/workspace/Dockerfile | $(DIRS)
+	docker build --tag crudebox:workspace $(^D) \
+		&& touch $@
+
+docker-workspace: build/docker-workspace-image
+	docker run \
+		--interactive \
+		--tty \
+		--rm \
+		--env XDG_RUNTIME_DIR \
+		--env DISPLAY \
+		--hostname $(shell hostname) \
+		--volume ~/.Xauthority:/home/docker/.Xauthority \
+		--volume ${XDG_RUNTIME_DIR}:/run/user/1000 \
+		--volume ${PWD}:/home/docker/crudebox \
+		--volume /tmp/.X11-unix:/tmp/.X11-unix \
+		--workdir /home/docker/crudebox \
+		crudebox:workspace $(WORKSPACE_COMMAND)
+
+docker-clean:
+	docker image ls \
+		| grep "crudebox" \
+		| awk '{ print $$3 }' \
+		| xargs --no-run-if-empty docker image rm --force
+	rm -f build/docker-workspace-image
+
 .PHONY: \
 	all \
 	clean \
 	debug \
+	docker-clean \
+	docker-workspace \
 	format \
 	install \
 	release \
