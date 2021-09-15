@@ -33,10 +33,13 @@
 # Get all (A)dded or (M)odified .c or .h files in the staging area
 FILES=$(git diff --name-only --cached --diff-filter=AM | grep "\.[ch]$")
 
-# Format all found files
-clang-format -i ${FILES}
+if [ "${FILES}" != "" ]; then
 
-# Ensure that the changes to these files are also added to the staging area
-git add ${FILES}
+    # Format all found files
+    clang-format -i ${FILES}
+
+    # Ensure that the changes to these files are also added to the staging area
+    git add ${FILES}
+fi
 
 exit 0
