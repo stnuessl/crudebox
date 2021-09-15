@@ -15,13 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef CONFIG_USE_WAYLAND
-
 #include <sys/mman.h>
 
 #include "xkb.h"
 
 #include "util/macro.h"
+
+#ifdef CONFIG_USE_WAYLAND
 
 int xkb_set_keymap(struct xkb *xkb, const char *desc)
 {

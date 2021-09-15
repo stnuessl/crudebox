@@ -31,13 +31,6 @@
 
 #ifdef CONFIG_USE_X11
 
-struct cookies {
-    xcb_intern_atom_cookie_t net_wm_window_type;
-    xcb_intern_atom_cookie_t net_wm_window_type_utility;
-    xcb_intern_atom_cookie_t motif_wm_hints;
-    xcb_grab_keyboard_cookie_t grab_keyboard;
-};
-
 static void window_set_root_visual(struct window *win)
 {
     xcb_depth_iterator_t depth_iter;
@@ -62,20 +55,6 @@ static void window_set_root_visual(struct window *win)
     die("failed to find the screen's root visual\n");
 }
 
-static void window_set_size(struct window *win, uint32_t width, uint32_t height)
-{
-    uint32_t mask = XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
-    uint32_t values[] = {width, height};
-
-    if (win->width == width && win->height == height)
-        return;
-
-    win->width = width;
-    win->height = height;
-
-    (void) xcb_configure_window(win->conn, win->xid, mask, values);
-}
-
 static void window_init_xcb(struct window *win, const char *display_name)
 {
     int err;
@@ -96,9 +75,12 @@ static void window_init_xcb(struct window *win, const char *display_name)
     win->symbols = xcb_key_symbols_alloc(win->conn);
     if (unlikely(!win->symbols))
         die("failed to initialize key symbols\n");
+
+    /* Used to check if the object is fully initialized */
+    win->xid = win->screen->root;
 }
 
-static void window_init_cookies(struct window *win, struct cookies *cookies)
+static void window_init_cookies(struct window *win)
 {
     static const char *names[] = {
         "_NET_WM_WINDOW_TYPE",
@@ -108,21 +90,21 @@ static void window_init_cookies(struct window *win, struct cookies *cookies)
 
     TIMER_INIT_SIMPLE();
 
-    cookies->net_wm_window_type =
+    win->net_wm_window_type_cookie =
         xcb_intern_atom(win->conn, false, strlen(names[0]), names[0]);
 
-    cookies->net_wm_window_type_utility =
+    win->net_wm_window_type_utility_cookie =
         xcb_intern_atom(win->conn, false, strlen(names[1]), names[1]);
 
-    cookies->motif_wm_hints =
+    win->motif_wm_hints_cookie =
         xcb_intern_atom(win->conn, false, strlen(names[2]), names[2]);
 
-    cookies->grab_keyboard = xcb_grab_keyboard(win->conn,
-                                               true,
-                                               win->screen->root,
-                                               XCB_CURRENT_TIME,
-                                               XCB_GRAB_MODE_ASYNC,
-                                               XCB_GRAB_MODE_ASYNC);
+    win->grab_keyboard_cookie = xcb_grab_keyboard(win->conn,
+                                                  true,
+                                                  win->screen->root,
+                                                  XCB_CURRENT_TIME,
+                                                  XCB_GRAB_MODE_ASYNC,
+                                                  XCB_GRAB_MODE_ASYNC);
 }
 
 static void window_init_frame(struct window *win)
@@ -132,9 +114,6 @@ static void window_init_frame(struct window *win)
     TIMER_INIT_SIMPLE();
 
     win->xid = xcb_generate_id(win->conn);
-
-    win->width = 1920;
-    win->height = 1080;
 
     values[0] = XCB_NONE;
     values[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS;
@@ -191,7 +170,7 @@ static void window_init_widget(struct window *win)
     if (unlikely(cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS))
         die("failed to create cairo xcb surface\n");
 
-    widget_init(&win->widget, surface);
+    widget_set_surface(&win->widget, surface);
 
     /* The widget itself is responsible to keep a handle on the surface */
     cairo_surface_destroy(surface);
@@ -253,29 +232,30 @@ static int window_grab_keyboard_fallback(struct window *win)
     return -1;
 }
 
-static void window_init_attributes(struct window *win,
-                                   const struct cookies *cookies)
+static void window_init_attributes(struct window *win)
+
 {
     xcb_generic_error_t *error = NULL;
     uint32_t hints[] = {0x02, 0x00, 0x00, 0x00, 0x00};
 
-    /* Collect replies from the server. */
     win->net_wm_window_type =
-        xcb_intern_atom_reply(win->conn, cookies->net_wm_window_type, &error);
+        xcb_intern_atom_reply(win->conn,
+                              win->net_wm_window_type_cookie,
+                              &error);
 
     if (unlikely(error))
         die("failed to retrieve intern atom \"_NET_WM_WINDOW_TYPE\"\n");
 
     win->net_wm_window_type_utility =
         xcb_intern_atom_reply(win->conn,
-                              cookies->net_wm_window_type_utility,
+                              win->net_wm_window_type_utility_cookie,
                               &error);
 
     if (unlikely(error))
         die("failed to retrieve intern atom \"_NET_WM_WINDOW_TYPE_UTILITY\"\n");
 
     win->motif_wm_hints =
-        xcb_intern_atom_reply(win->conn, cookies->motif_wm_hints, &error);
+        xcb_intern_atom_reply(win->conn, win->motif_wm_hints_cookie, &error);
 
     if (unlikely(error))
         die("failed to retrieve intern atom \"_MOTIF_WM_HINTS\"\n");
@@ -301,7 +281,7 @@ static void window_init_attributes(struct window *win,
                                hints);
 
     win->grab_keyboard =
-        xcb_grab_keyboard_reply(win->conn, cookies->grab_keyboard, &error);
+        xcb_grab_keyboard_reply(win->conn, win->grab_keyboard_cookie, &error);
 
     if (error || win->grab_keyboard->status != XCB_GRAB_STATUS_SUCCESS) {
         int err;
@@ -334,15 +314,11 @@ static void window_grab_focus(struct window *win)
 
 void window_init(struct window *win, const char *display_name)
 {
-    struct cookies cookies;
-
     TIMER_INIT_SIMPLE();
 
     window_init_xcb(win, display_name);
-    window_init_cookies(win, &cookies);
-    window_init_frame(win);
-    window_init_widget(win);
-    window_init_attributes(win, &cookies);
+    window_init_cookies(win);
+    widget_init(&win->widget);
 }
 
 void window_destroy(struct window *win)
@@ -361,20 +337,24 @@ void window_destroy(struct window *win)
 #endif
 }
 
-void window_update_size(struct window *win)
+static inline bool window_x11_frame_initialized(struct window *win)
 {
-    uint32_t width, height;
+    return win->xid != win->screen->root;
+}
 
-    TIMER_INIT_SIMPLE();
-
-    widget_get_size_hint(&win->widget, &width, &height);
-
-    window_set_size(win, width, height);
-    widget_set_size(&win->widget, width, height);
+static void window_init_x11_frame(struct window *win)
+{
+    widget_get_size_hint(&win->widget, &win->width, &win->height);
+    window_init_frame(win);
+    window_init_widget(win);
+    window_init_attributes(win);
 }
 
 void window_show(struct window *win)
 {
+    if (!window_x11_frame_initialized(win))
+        window_init_x11_frame(win);
+
     (void) xcb_map_window(win->conn, win->xid);
 }
 

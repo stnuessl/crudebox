@@ -37,6 +37,11 @@ struct window {
     xcb_key_symbols_t *symbols;
     xcb_window_t xid;
 
+    xcb_intern_atom_cookie_t net_wm_window_type_cookie;
+    xcb_intern_atom_cookie_t net_wm_window_type_utility_cookie;
+    xcb_intern_atom_cookie_t motif_wm_hints_cookie;
+    xcb_grab_keyboard_cookie_t grab_keyboard_cookie;
+
     xcb_intern_atom_reply_t *net_wm_window_type;
     xcb_intern_atom_reply_t *net_wm_window_type_utility;
     xcb_intern_atom_reply_t *motif_wm_hints;
@@ -98,8 +103,6 @@ static inline struct widget *window_get_widget(struct window *win)
 {
     return &win->widget;
 }
-
-void window_update_size(struct window *win);
 
 void window_show(struct window *win);
 
