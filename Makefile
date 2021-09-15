@@ -111,7 +111,7 @@ TARGET		:= $(strip $(BUILD_DIR))/$(strip $(BIN))
 #
 # Set installation directory used in 'make install'
 #
-DESTDIR	:= /usr/local/bin/
+DESTDIR		:= /usr/local/bin/
 
 #
 # Define all object and dependency files from $(SRC) and get
@@ -185,9 +185,16 @@ CPPFLAGS	= \
 		-MMD \
 		-MF $(patsubst %.o, %.d, $@) \
 		-MT $@  \
-		-D_GNU_SOURCE \
-		-DCONFIG_USE_X11 \
-#		-DCONFIG_USE_WAYLAND \
+		-D_GNU_SOURCE
+#
+
+ifeq (x11,$(findstring x11,$(XDG_SESSION_TYPE)))
+CPPFLAGS	+= -DCONFIG_USE_X11
+else ifeq (wayland,$(findstring wayland,$(XDG_SESSION_TYPE)))
+CPPFLAGS	+= -DCONFIG_USE_WAYLAND
+else
+$(error Unknown "XDG_SESSION_TYPE": Use either "x11" or "wayland")
+endif
 
 #
 # If clang is used, generate a compilation database for each
