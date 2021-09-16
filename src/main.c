@@ -32,9 +32,73 @@
 #include "timer.h"
 #include "window.h"
 
+#ifndef CRUDEBOX_VERSION_MAJOR
+#error Preprocessor macro "CRUDEBOX_VERSION_MAJOR" not defined.
+#endif
+
+#ifndef CRUDEBOX_VERSION_MINOR
+#error Preprocessor macro "CRUDEBOX_VERSION_MINOR" not defined.
+#endif
+
+#ifndef CRUDEBOX_VERSION_PATCH
+#error Preprocessor macro "CRUDEBOX_VERSION_PATCH" not defined.
+#endif
+
+#define CRUDEBOX_VERSION                                                       \
+    CRUDEBOX_VERSION_MAJOR "." CRUDEBOX_VERSION_MINOR "." CRUDEBOX_VERSION_PATCH
+
+#ifndef COPYRIGHT_YEAR
+#error Preprocessor macro "COPYRIGHT_YEAR" not defined.
+#endif
+
 static struct config conf;
 static struct window win;
 static struct item_list items;
+
+static void help(void)
+{
+    fprintf(stdout,
+            "Usage:\n"
+            "  crudebox [options]\n"
+            "\n"
+            "crudebox options:\n"
+            "\n"
+            "  --help,    -h  Print this help message and exit.\n"
+            "  --print,   -p  Only print the selected entry to stdout.\n"
+            "  --version, -v  Print version information and exit.\n"
+            "\n"
+            "The list of available programs displayed by crudebox can be\n"
+            "influenced by changing the value of the PATH environment\n"
+            "variable.\n"
+            "\n"
+            "The program also supports reading in a list if newline separated\n"
+            "values from standard input. If data is available on stdin,\n"
+            "no other items will be displayed by crudebox.\n");
+}
+
+static void version(void)
+{
+    fprintf(stdout,
+            "crudebox version " CRUDEBOX_VERSION "\n"
+            "\n"
+            "Copyright (C) " COPYRIGHT_YEAR " Free Software Foundation, Inc.\n"
+            "License GPLv3+: GNU GPL version 3 or later "
+            "<https://gnu.org/licenses/gpl.html>.\n"
+            "This is free software: you are free to change and redistribute "
+            "it.\n"
+            "There is NO WARRANTY, to the extent permitted by law.\n"
+            "\n"
+            "This program is distributed in the hope that it will be useful,\n"
+            "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+            "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+            "GNU General Public License for more details.\n"
+            "\n"
+            "You should have received a copy of the GNU General Public "
+            "License\n"
+            "along with this program. If not, see "
+            "http://www.gnu.org/licenses/.\n"
+            "\n");
+}
 
 static void *thread1_run(void *arg)
 {
@@ -82,9 +146,11 @@ int main(int argc, char *argv[])
 
     for (int i = 1; i < argc; ++i) {
         if (streq("-h", argv[i]) || streq("--help", argv[i])) {
-            printf("Help message\n");
+            help();
+            exit(EXIT_SUCCESS);
         } else if (streq("--version", argv[i])) {
-            printf("Version information\n");
+            version();
+            exit(EXIT_SUCCESS);
         } else if (streq("--print", argv[i]) || streq("-p", argv[i])) {
             print = true;
         } else if (i + 1 >= argc) {

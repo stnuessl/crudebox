@@ -41,6 +41,15 @@ ifndef BIN
 $(error No binary name specified)
 endif
 
+VERSION_MAJOR	:= 0
+VERSION_MINOR	:= 1
+VERSION_PATCH	:= 0
+
+#
+# Use the current unix time as the build timestamp.
+#
+UNIX_TIME	:= $(shell date --utc +"%s")
+
 #
 # Specifiy the additional wayland protocols
 #
@@ -185,7 +194,11 @@ CPPFLAGS	= \
 		-MMD \
 		-MF $(patsubst %.o, %.d, $@) \
 		-MT $@  \
-		-D_GNU_SOURCE
+		-D_GNU_SOURCE \
+		-DCRUDEBOX_VERSION_MAJOR=\"$(VERSION_MAJOR)\" \
+		-DCRUDEBOX_VERSION_MINOR=\"$(VERSION_MINOR)\" \
+		-DCRUDEBOX_VERSION_PATCH=\"$(VERSION_PATCH)\" \
+		-DCOPYRIGHT_YEAR=\"$(shell date --date "@$(UNIX_TIME)" +"%Y")\"
 #
 
 ifeq (x11,$(findstring x11,$(XDG_SESSION_TYPE)))
