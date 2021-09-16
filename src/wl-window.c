@@ -141,8 +141,6 @@ static void window_output_mode(void *data,
 
     win->width = width;
     win->height = height;
-
-    printf("width: %d, height: %d\n", width, height);
 }
 
 static void window_output_done(void *data, struct wl_output *output)

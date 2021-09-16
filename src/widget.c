@@ -216,10 +216,6 @@ void widget_get_size_hint(const struct widget *widget,
 
     /* Ensure both sub-widgets have enough height */
     *height = h1 + h2 + h3;
-
-    printf("font height: %lf\n", extents.height);
-
-    printf("Hint: (%u, %u)\n", *width, *height);
 }
 
 void widget_set_font(struct widget *widget, const char *path)
