@@ -50,7 +50,7 @@ struct widget {
     uint32_t width;
     uint32_t height;
 
-    bool print;
+    bool dry_run;
 
     struct color frame;
     uint32_t line_width;
@@ -96,9 +96,9 @@ static inline void widget_set_line_width(struct widget *widget, uint32_t width)
     widget->line_width = width;
 }
 
-static inline void widget_set_print(struct widget *widget, bool print)
+static inline void widget_set_dry_run(struct widget *widget, bool dry_run)
 {
-    widget->print = print;
+    widget->dry_run = dry_run;
 }
 
 static inline void widget_set_max_rows(struct widget *widget, int num)

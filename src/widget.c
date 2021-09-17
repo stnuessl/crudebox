@@ -106,7 +106,7 @@ __attribute__((noreturn)) static void widget_exec_item(struct widget *widget)
     if (!file)
         exit(EXIT_SUCCESS);
 
-    if (widget->print) {
+    if (widget->dry_run) {
         fprintf(stdout, "%s\n", file);
         exit(EXIT_SUCCESS);
     }

@@ -63,8 +63,9 @@ static void help(void)
             "\n"
             "crudebox options:\n"
             "\n"
+            "  --dry-run      Do not execute the selected entry. Instead,\n"
+            "                 print it to standard output.\n"
             "  --help,    -h  Print this help message and exit.\n"
-            "  --print,   -p  Only print the selected entry to stdout.\n"
             "  --version, -v  Print version information and exit.\n"
             "\n"
             "The list of available programs displayed by crudebox can be\n"
@@ -73,7 +74,11 @@ static void help(void)
             "\n"
             "The program also supports reading in a list if newline separated\n"
             "values from standard input. If data is available on stdin,\n"
-            "no other items will be displayed by crudebox.\n");
+            "no other items will be displayed by crudebox.\n"
+            "\n"
+            "Extensive help for crudebox can be found here:\n"
+            "<https://github.com/stnuessl/crudebox/blob/master/README.md>.\n"
+            "\n");
 }
 
 static void version(void)
@@ -131,7 +136,7 @@ int main(int argc, char *argv[])
     struct list_view *view;
     pthread_t thread1, thread2;
     int err1, err2;
-    bool print;
+    bool dry_run;
 
     err1 = pthread_create(&thread1, NULL, &thread1_run, NULL);
     err2 = pthread_create(&thread2, NULL, &thread2_run, NULL);
@@ -142,7 +147,7 @@ int main(int argc, char *argv[])
     if (err2 != 0)
         (void) thread2_run(NULL);
 
-    print = false;
+    dry_run = false;
 
     for (int i = 1; i < argc; ++i) {
         if (streq("-h", argv[i]) || streq("--help", argv[i])) {
@@ -151,8 +156,8 @@ int main(int argc, char *argv[])
         } else if (streq("--version", argv[i])) {
             version();
             exit(EXIT_SUCCESS);
-        } else if (streq("--print", argv[i]) || streq("-p", argv[i])) {
-            print = true;
+        } else if (streq("--dry-run", argv[i])) {
+            dry_run = true;
         } else if (i + 1 >= argc) {
             die("missing argument for option \"%s\"\n", argv[i]);
         } else {
@@ -171,7 +176,7 @@ int main(int argc, char *argv[])
     widget_set_font_size(widget, conf.font.size);
     widget_set_frame_color(widget, conf.widget.frame);
     widget_set_line_width(widget, conf.widget.line_width);
-    widget_set_print(widget, print);
+    widget_set_dry_run(widget, dry_run);
 
     line_edit_set_fg(edit, conf.line_edit.fg);
     line_edit_set_bg(edit, conf.line_edit.bg);
