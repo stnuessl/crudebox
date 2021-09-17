@@ -18,6 +18,14 @@
 #ifndef ENV_H_
 #define ENV_H_
 
+const char *env_crudebox_cache(void);
+
+const char *env_crudebox_config(void);
+
 const char *env_home(void);
+
+const char *env_xdg_cache(void);
+
+const char *env_xdg_config(void);
 
 #endif /* ENV_H_ */

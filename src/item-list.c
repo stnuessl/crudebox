@@ -499,13 +499,21 @@ static void item_list_load_from_stdin(struct item_list *list)
 static void item_list_load_from_directories(struct item_list *list,
                                             const char *dirs)
 {
-    const char *home, *cache;
+    const char *cache, *xdg_cache;
     char *dup;
 
-    home = env_home();
-
     /* Create path to the cache file */
-    strconcat2a(&cache, home, "/.cache/crudebox/cache");
+    cache = env_crudebox_cache();
+    if (!cache) {
+        xdg_cache = env_xdg_cache();
+        if (xdg_cache) {
+            strconcat2a(&cache, xdg_cache, "/crudebox/cache");
+        } else {
+            const char *home = env_home();
+
+            strconcat2a(&cache, home, ".cache/crudebox/cache");
+        }
+    }
 
     /* Make sure that we can modify the directory list */
     dup = strdupa(dirs);

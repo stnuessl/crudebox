@@ -23,6 +23,7 @@
 
 #include "util/die.h"
 #include "util/env.h"
+#include "util/errstr.h"
 #include "util/macro.h"
 #include "util/string-util.h"
 
@@ -139,14 +140,7 @@ config_run_parser(struct config *config, const char *prefix, const char *path)
 
 void config_init(struct config *config)
 {
-    static const char *paths[] = {
-        "~/.config/crudebox/config",
-        "~/.config/crudebox/crudebox.conf",
-        "~/.crudebox.conf",
-        "/etc/crudebox/config",
-        "/etc/crudebox/crudebox.conf",
-        "/etc/crudebox.conf",
-    };
+    TIMER_INIT_SIMPLE();
 
     /*
      * The elements in this array have to be sorted according to their
@@ -170,28 +164,53 @@ void config_init(struct config *config)
         { "widget", "line-width", &config->widget.line_width, &mem_set_u32 },
         /* clang-format on */
     };
-    const char *home = env_home();
+    const char *crudebox_config, *home, *xdg_config;
+    int err;
 
     config_parser_init(&config->parser, events, ARRAY_SIZE(events));
 
-    for (int i = 0; i < ARRAY_SIZE(paths); ++i) {
-        const char *prefix, *path;
-        int err;
+    crudebox_config = env_crudebox_config();
+    if (crudebox_config) {
+        err = config_parser_run(&config->parser, crudebox_config);
+        if (err < 0)
+            die("failed to load configuration file \"%s\"\n", crudebox_config);
+    }
 
-        if (paths[i][0] == '~') {
-            prefix = home;
-            path = paths[i] + 1;
-        } else {
-            prefix = "";
-            path = paths[i];
-        }
+    home = env_home();
+    xdg_config = env_xdg_config();
+    if (!xdg_config) {
+        strconcat2a(&xdg_config, home, "/.config");
+    }
 
-        err = config_run_parser(config, prefix, path);
+    const char *twines[] = {
+        xdg_config,
+        "/crudebox/config",
+        xdg_config,
+        "/crudebox/crudebox.conf",
+        home,
+        "/.crudebox",
+        home,
+        "/.crudebox.conf",
+        "/etc/crudebox/config",
+        "",
+        "/etc/crudebox/crudebox.conf",
+        "",
+        "/etc/crudebox.conf",
+        "",
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(twines); i += 2) {
+        const char *a, *b;
+
+        a = twines[i];
+        b = twines[i + 1];
+
+        err = config_run_parser(config, a, b);
         if (err == 0)
             return;
 
         if (unlikely(err != -ENOENT))
-            die("failed to load configuration file \"%s%s\"\n", prefix, path);
+            die("failed to load configuration file \"%s%s\"\n", a, b);
     }
 
     die("failed to auto-detect the configuration file\n");
