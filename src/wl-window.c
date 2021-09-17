@@ -288,6 +288,9 @@ static void window_keyboard_key(void *data,
     (void) serial;
     (void) time;
 
+    if (!xkb_ready(&win->xkb))
+        return;
+
     if (!win->buffer)
         return;
 
@@ -309,7 +312,7 @@ static void window_keyboard_key(void *data,
         ev.shift = xkb_mod_active(&win->xkb, XKB_MOD_NAME_SHIFT);
         ev.mod1 = xkb_mod_active(&win->xkb, XKB_MOD_NAME_ALT);
 
-        widget_do_key_event(&win->widget, ev);
+        win->active = widget_do_key_event(&win->widget, ev);
 
         win->symbol = symbol;
         break;
@@ -555,7 +558,7 @@ static void window_dispatch_timer_event(struct window *win)
     ev.shift = xkb_mod_active(&win->xkb, XKB_MOD_NAME_SHIFT);
     ev.mod1 = xkb_mod_active(&win->xkb, XKB_MOD_NAME_ALT);
 
-    widget_do_key_event(&win->widget, ev);
+    (void) widget_do_key_event(&win->widget, ev);
 }
 
 static struct window_event window_wayland_event = {
@@ -665,6 +668,7 @@ void window_init(struct window *win, const char *display_name)
 
     memset(win, 0, sizeof(*win));
 
+    xkb_init(&win->xkb);
     window_init_wayland(win, display_name);
     window_init_events(win);
     widget_init(&win->widget);
@@ -679,9 +683,14 @@ void window_destroy(struct window *win)
     if (win->mem)
         munmap(win->mem, win->size);
 
+    close(win->timer_fd);
+    close(win->epoll_fd);
+
+    widget_destroy(&win->widget);
     wl_compositor_destroy(win->compositor);
     wl_registry_destroy(win->registry);
     wl_display_disconnect(win->display);
+    xkb_destroy(&win->xkb);
 #else
     (void) win;
 #endif
@@ -699,7 +708,9 @@ void window_show(struct window *win)
 
 void window_dispatch_events(struct window *win)
 {
-    while (1) {
+    win->active = true;
+
+    while (win->active) {
         struct epoll_event events[2];
         int n;
 

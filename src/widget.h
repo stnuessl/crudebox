@@ -116,6 +116,6 @@ void widget_set_size(struct widget *widget, uint32_t width, uint32_t height);
 
 void widget_draw(struct widget *widget);
 
-void widget_do_key_event(struct widget *widget, struct key_event ev);
+bool widget_do_key_event(struct widget *widget, struct key_event ev);
 
 #endif /* WIDGET_H_ */

@@ -76,7 +76,7 @@ static void window_init_xcb(struct window *win, const char *display_name)
     if (unlikely(!win->symbols))
         die("failed to initialize key symbols\n");
 
-    /* Used to check if the object is fully initialized */
+    /* Used to check if the object's window is allocated. */
     win->xid = win->screen->root;
 }
 
@@ -330,6 +330,8 @@ void window_destroy(struct window *win)
     free(win->motif_wm_hints);
     free(win->net_wm_window_type_utility);
     free(win->net_wm_window_type);
+
+    widget_destroy(&win->widget);
     xcb_key_symbols_free(win->symbols);
     xcb_disconnect(win->conn);
 #else
@@ -367,8 +369,9 @@ void window_dispatch_events(struct window *win)
         xcb_focus_in_event_t *focus;
         xcb_visibility_notify_event_t *visibility;
     };
+    bool active = true;
 
-    while (1) {
+    while (active) {
         union event ev;
         struct key_event key_event;
         xcb_keysym_t sym;
@@ -393,7 +396,7 @@ void window_dispatch_events(struct window *win)
             key_event.ctrl = !!(ev.key_press->state & XCB_MOD_MASK_CONTROL);
             key_event.mod1 = !!(ev.key_press->state & XCB_MOD_MASK_1);
 
-            widget_do_key_event(&win->widget, key_event);
+            active = widget_do_key_event(&win->widget, key_event);
             break;
         case XCB_KEY_RELEASE:
             break;

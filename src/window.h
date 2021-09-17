@@ -89,6 +89,8 @@ struct window {
     xkb_keysym_t symbol;
     int32_t rate;
     int32_t delay;
+
+    bool active;
 };
 
 #else

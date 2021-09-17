@@ -158,8 +158,10 @@ void widget_destroy(struct widget *widget)
     list_view_destroy(&widget->list_view);
     line_edit_destroy(&widget->line_edit);
 
+    /* Cairo does not seem to nicely interact with valgrind. */
     cairo_destroy(widget->cairo);
 
+    FT_Done_Face(widget->face);
     FT_Done_FreeType(widget->freetype);
 #else
     (void) widget;
@@ -274,7 +276,7 @@ void widget_draw(struct widget *widget)
     list_view_draw(&widget->list_view);
 }
 
-void widget_do_key_event(struct widget *widget, struct key_event ev)
+bool widget_do_key_event(struct widget *widget, struct key_event ev)
 {
     TIMER_INIT_SIMPLE();
 
@@ -287,7 +289,7 @@ void widget_do_key_event(struct widget *widget, struct key_event ev)
             break;
         }
 
-        return;
+        return true;
     }
 
     if (ev.ctrl) {
@@ -296,19 +298,17 @@ void widget_do_key_event(struct widget *widget, struct key_event ev)
             widget_clear(widget);
             break;
         case XKB_KEY_c:
-            exit(EXIT_SUCCESS);
-            break;
+            return false;
         default:
             break;
         }
 
-        return;
+        return true;
     }
 
     switch (ev.symbol) {
     case XKB_KEY_Escape:
-        exit(EXIT_SUCCESS);
-        break;
+        return false;
     case XKB_KEY_Control_L:
         break;
     case XKB_KEY_Home:
@@ -343,4 +343,6 @@ void widget_do_key_event(struct widget *widget, struct key_event ev)
 
         break;
     }
+
+    return true;
 }

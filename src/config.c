@@ -147,6 +147,7 @@ void config_init(struct config *config)
         "/etc/crudebox/crudebox.conf",
         "/etc/crudebox.conf",
     };
+
     /*
      * The elements in this array have to be sorted according to their
      * first and second data field.
