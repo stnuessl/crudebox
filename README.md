@@ -20,6 +20,11 @@ A simple and fast program launcher.
         * [Keyboard Shortcuts](README.md#keyboard-shortcuts)
         * [Configuration File](README.md#configuration-file)
         * [Environment](README.md#environment)
+            * [CRUDEBOX_CACHE](README.md#crudeboxcache)
+            * [CRUDEBOX_CONFIG](README.md#crudeboxconfig)
+            * [PATH](README.md#path)
+            * [XDG_CACHE_HOME](README.md#xdgcachehome)
+            * [XDG_CONFIG_HOME](README.md#xdgconfighome)
         * [Read from standard input](README.md#read-from-standard-input)
         * [Cache](README.md#cache)
 
@@ -130,17 +135,22 @@ The cache and configuration files need to be removed manually.
 | Page Up       | Home                  | Select top item           |
 | Page Down     | End                   | Select bottom item        |
 
+
 ### Configuration File
 
 __crudebox__ will not work without a configuration file in one of the following
 paths:
 
-* ~/.config/crudebox/config
-* ~/.config/crudebox/crudebox.conf
-* ~/.crudebox.conf
+* ${XDG_CONFIG_HOME}/crudebox/config
+* ${XDG_CONFIG_HOME}/crudebox/crudebox.conf
+* ${HOME}/.crudebox
+* ${HOME}/.crudebox.conf
 * /etc/crudebox/config
 * /etc/crudebox/crudebox.conf
 * /etc/crudebox.conf
+
+Alternatively, see [CRUDEBOX_CONFIG](README.md#crudeboxconfig) on how to 
+specify a different path for the __crudebox__ configuration file.
 
 Here is an example configuration file that can be used:
 ```
@@ -179,6 +189,32 @@ in the configuration with a path that is existing on your system.
 
 ### Environment
 
+There are several enviroment variables which can be used to influence the
+behavior of __crudebox__.
+
+#### CRUDEBOX_CACHE
+
+The _CRUDEBOX_CACHE_ variable can be used to directly specify the cache file
+used by __crudebox__.
+
+```
+$ CRUDEBOX_CACHE=/tmp/crudebox.cache crudebox
+```
+
+#### CRUDEBOX_CONFIG
+
+The _CRUDEBOX_CONFIG_ variable can be used to directly specify the configuration
+file used by __crudebox__.
+
+```
+$ CRUDEBOX_CONFIG=~/.crudebox.ini crudebox
+```
+
+#### PATH
+
+The _PATH_ environment variable specifies a colon separated list of 
+directories which __crudebox__ uses to search for executable programs.
+
 ```
 $ PATH=/usr/local/bin crudebox
 ```
@@ -186,21 +222,46 @@ $ PATH=/usr/local/bin crudebox
 $ PATH="${PATH}:~/bin" crudebox
 ```
 
+#### XDG_CACHE_HOME
+
+The cache directory used by __crudebox__ can be changed via the
+_XDG_CACHE_HOME_ environment variable. E.g. running __crudebox__ with 
+
+```
+$ XDG_CACHE_HOME=/run/user/${UID}/cache crudebox
+```
+
+will make the program use _/run/user/${UID}/cache/crudebox/cache_ as the 
+cache file.
+
+#### XDG_CONFIG_HOME
+
+```
+$ XDG_CONFIG_HOME=~/configuration crudebox
+```
+
 ### Read from standard input
 
 __crudebox__ automatically detects if data is available on standard input.
 
-
-$ ls --color=never ~/ | crudebox
+```
+$ ls --color=never /usr/local/bin | crudebox
+```
 
 ### Cache
 
-Improve __crudebox__ initialization performance by enabling the cache:
+__crudebox__ uses by default the cache directory _${HOME}/.cache/crudebox_ for
+its cache file. If it detects that this directory exists it will automatically
+use it for its cache file. 
 ```
 $ mkdir -p ~/.cache/crudebox
 ```
 
-Disable the __crudebox__ cache:
+Deleting the same directory will disable __crudebox__ cache:
 ```
 $ rm -rf ~/.cache/crudebox
 ```
+
+The path of the cache can be changed via environment variables, see
+[CRUDEBOX_CACHE](README.md#crudeboxcache).
+
