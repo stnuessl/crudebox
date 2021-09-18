@@ -20,11 +20,11 @@ A simple and fast program launcher.
         * [Keyboard Shortcuts](README.md#keyboard-shortcuts)
         * [Configuration File](README.md#configuration-file)
         * [Environment](README.md#environment)
-            * [CRUDEBOX_CACHE](README.md#crudeboxcache)
-            * [CRUDEBOX_CONFIG](README.md#crudeboxconfig)
+            * [CRUDEBOX_CACHE](README.md#crudebox_cache)
+            * [CRUDEBOX_CONFIG](README.md#crudebox_config)
             * [PATH](README.md#path)
-            * [XDG_CACHE_HOME](README.md#xdgcachehome)
-            * [XDG_CONFIG_HOME](README.md#xdgconfighome)
+            * [XDG_CACHE_HOME](README.md#xdg_cache_home)
+            * [XDG_CONFIG_HOME](README.md#xdg_config_home)
         * [Read from standard input](README.md#read-from-standard-input)
         * [Cache](README.md#cache)
 
@@ -149,7 +149,7 @@ paths:
 * /etc/crudebox/crudebox.conf
 * /etc/crudebox.conf
 
-Alternatively, see [CRUDEBOX_CONFIG](README.md#crudeboxconfig) on how to 
+Alternatively, see [CRUDEBOX_CONFIG](README.md#crudebox_config) on how to 
 specify a different path for the __crudebox__ configuration file.
 
 Here is an example configuration file that can be used:
@@ -263,5 +263,5 @@ $ rm -rf ~/.cache/crudebox
 ```
 
 The path of the cache can be changed via environment variables, see
-[CRUDEBOX_CACHE](README.md#crudeboxcache).
+[CRUDEBOX_CACHE](README.md#crudebox_cache).
 
