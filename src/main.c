@@ -158,9 +158,8 @@ int main(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         } else if (streq("--dry-run", argv[i])) {
             dry_run = true;
-        } else if (i + 1 >= argc) {
-            die("missing argument for option \"%s\"\n", argv[i]);
         } else {
+            die("invalid option \"%s\"\n", argv[i]);
         }
     }
 
