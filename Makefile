@@ -120,7 +120,7 @@ TARGET		:= $(strip $(BUILD_DIR))/$(strip $(BIN))
 #
 # Set installation directory used in 'make install'
 #
-DESTDIR		:= /usr/local/bin/
+INSTALL_DIR		:= /usr/local/bin
 
 #
 # Define all object and dependency files from $(SRC) and get
@@ -166,11 +166,8 @@ PKGCONF		:= \
 # Set non-pkg-configurable libraries flags 
 #
 LIBS		:= \
- 		-pthread \
 #		-lstdc++fs \
 # 		-lm \
-# 		-Wl,--start-group \
-# 		-Wl,--end-group \
 
 #
 # Set linker flags, here: 'rpath' for libraries in non-standard directories
@@ -178,6 +175,9 @@ LIBS		:= \
 # as in the CFLAGS / CXXFLAGS
 #
 LDFLAGS		:= \
+ 		-pthread \
+# 		-Wl,--start-group \
+# 		-Wl,--end-group \
 # 		-Wl,-rpath,/usr/local/lib \
 #		-shared \
 #		-fPIC \
@@ -199,8 +199,10 @@ CPPFLAGS	= \
 		-DCRUDEBOX_VERSION_MINOR=\"$(VERSION_MINOR)\" \
 		-DCRUDEBOX_VERSION_PATCH=\"$(VERSION_PATCH)\" \
 		-DCOPYRIGHT_YEAR=\"$(shell date --date "@$(UNIX_TIME)" +"%Y")\"
-#
 
+#
+# Automatically detect which windowing system is to be used
+#
 ifeq (x11,$(findstring x11,$(XDG_SESSION_TYPE)))
 CPPFLAGS	+= -DCONFIG_USE_X11
 else ifeq (wayland,$(findstring wayland,$(XDG_SESSION_TYPE)))
@@ -256,9 +258,9 @@ CXXFLAGS	:= \
 ifneq ($(PKGCONF),)
 
 ifneq ($(shell pkg-config --exists $(PKGCONF) && printf $$?), 0)
-PKGS 		:= $(shell pkg-config --list-all | cut -f1 -d " ")
-FOUND		:= $(sort $(filter $(PKGCONF),$(PKGS)))
-$(error Missing pkg-config libraries: [ $(filter-out $(FOUND),$(PKGCONF)) ])
+ALL_PKGS	:= $(shell pkg-config --list-all | cut -f1 -d " ")
+OK_PKGS		:= $(sort $(filter $(PKGCONF),$(ALL_PKGS)))
+$(error Missing pkg-config libraries: [ $(filter-out $(OK_PKGS), $(PKGCONF)) ])
 endif
 
 CFLAGS		+= $(shell pkg-config --cflags $(PKGCONF))
@@ -278,7 +280,7 @@ LDFLAGS		+= $(EXTRA_LDFLAGS)
 # Setting terminal colors
 #
 
-ifneq ($(MAKEFILE_COLORS), 0)
+ifneq ($(MAKEFILE_COLOR), 0)
 
 RED			:= \e[1;31m
 GREEN		:= \e[1;32m
@@ -367,10 +369,10 @@ tags: $(HDR) $(SRC)
 	ctags -f tags $^
 
 install: $(TARGET)
-	cp $(TARGET) $(DESTDIR)
+	cp $(TARGET) $(INSTALL_DIR)
 
 uninstall:
-	rm -f $(DESTDIR)$(BIN)
+	rm -f $(INSTALL_DIR)/$(BIN)
 
 build/docker-workspace-image: docker/workspace/Dockerfile | $(DIRS)
 	docker build --tag crudebox:workspace $(^D) \
