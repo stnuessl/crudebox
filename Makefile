@@ -144,8 +144,8 @@ JSON		:= $(patsubst %.o, %.json, $(OBJS))
 #
 # Add additional include paths
 #
-INC		:= \
-	-Igen/
+INCLUDES	:= \
+		-Igen/
 
 #
 # Add used libraries which are configurable with pkg-config
@@ -190,7 +190,7 @@ LDLIBS		:= $(LIBS)
 # file "$(DEPS)" for each processed translation unit.
 #
 CPPFLAGS	= \
-		$(INC) \
+		$(INCLUDES) \
 		-MMD \
 		-MF $(patsubst %.o, %.d, $@) \
 		-MT $@  \
@@ -253,10 +253,9 @@ CXXFLAGS	:= \
 # Check if specified pkg-config libraries are available and abort
 # if they are not.
 #
-ifdef PKGCONF
+ifneq ($(PKGCONF),)
 
-OK		:= $(shell pkg-config --exists $(PKGCONF) && printf "OK")
-ifndef $(OK)
+ifneq ($(shell pkg-config --exists $(PKGCONF) && printf $$?), 0)
 PKGS 		:= $(shell pkg-config --list-all | cut -f1 -d " ")
 FOUND		:= $(sort $(filter $(PKGCONF),$(PKGS)))
 $(error Missing pkg-config libraries: [ $(filter-out $(FOUND),$(PKGCONF)) ])
@@ -267,16 +266,20 @@ CXXFLAGS	+= $(shell pkg-config --cflags $(PKGCONF))
 LDLIBS		+= $(shell pkg-config --libs $(PKGCONF))
 endif
 
+#
 # Append extra arguments passed on the command-line
+#
 CPPFLAGS	+= $(EXTRA_CPPFLAGS)
 CFLAGS		+= $(EXTRA_CFLAGS)
 CXXFLAGS	+= $(EXTRA_CXXFLAGS)
 LDFLAGS		+= $(EXTRA_LDFLAGS)
 
-
 #
 # Setting terminal colors
 #
+
+ifneq ($(MAKEFILE_COLORS), 0)
+
 RED			:= \e[1;31m
 GREEN		:= \e[1;32m
 YELLOW		:= \e[1;33m
@@ -285,10 +288,12 @@ MAGENTA		:= \e[1;35m
 CYAN		:= \e[1;36m
 RESET		:= \e[0m
 
+endif
+
 #
 # Get the MD5 hash value of a file passed as an argument.
 #
-checksum		= $$(sha256sum $(1) | cut -f1 -d " ")
+checksum	= $$(sha256sum $(1) | cut -f1 -d " ")
 
 
 #
