@@ -155,32 +155,48 @@ specify a different path for the __crudebox__ configuration file.
 Here is an example configuration file that can be used:
 ```
 #
-# crudebox config file
+# crudebox configuration file
+#
+# The color scheme defined in this configuration file is targeted to blend in
+# well with the default i3-wm's color scheme and vim's gruvbox-dark scheme.
 #
 
 [widget]
 
+# Set the widget's frame color
 frame = 0x4c7899
+# Set the widget's frame line width
 line-width = 2
 
 [font]
+
+# Set the font used by crudebox
 path = /usr/share/fonts/TTF/Hack-Regular.ttf
+# Set the font size.
 size = 16
 
 [line-edit]
+
+# Foreground color
 fg = 0xcccccc
+# Background color
 bg = 0x282828
 
 [list-view]
-size = 15
 
+# Set the number of entries shown in the menu
+size = 15
+# Foreground color
 fg = 0xcccccc
+# Background colors
 bg1 = 0x282828
 bg2 = 0x222222
+# Foreground and background colors for the selected item
 fg-sel = 0x285577
 bg1-sel = 0x181818
 bg2-sel = 0x181818
-lines = 0x282828 
+# Separation line color
+lines = 0x282828
 ```
 
 Please note that it's likely that you do not have the font "Hack" installed and
