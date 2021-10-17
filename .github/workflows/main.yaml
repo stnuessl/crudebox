@@ -1,0 +1,78 @@
+#
+# Github workflow 
+#
+
+name: CI-Build 
+on: 
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 6"
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [clang, gcc]
+        xdg_session_type: [x11, wayland]
+    env:
+      XDG_SESSION_TYPE: ${{ matrix.xdg_session_type }}
+      ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
+    if: true 
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get --assume-yes install \
+            clang \
+            clang-tools-12 \
+            gcc \
+            make \
+            ctags \
+            pkg-config \
+            libcairo2-dev \
+            libfreetype-dev \
+            libwayland-dev \
+            libx11-xcb-dev \
+            libxcb-keysyms1-dev \
+            libxkbcommon-dev \
+            wayland-protocols
+          sudo ln -s /usr/bin/clang-extdef-mapping-12 \
+            /usr/local/bin/clang-extdef-mapping
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Continious integration build
+        run: |
+          make \
+            CC=${{ matrix.compiler }} \
+            EXTRA_CFLAGS="-Werror" \
+            ci-build
+      - name: Install binary
+        run: sudo --preserve-env make install
+
+
+  docker-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [clang, gcc]
+        xdg_session_type: [x11, wayland]
+        docker_image: [archlinux-build, fedora-build]
+    env:
+      ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
+      XDG_SESSION_TYPE: ${{ matrix.xdg_session_type }}
+      CMD: |
+        make \
+          GITHUB_REF=${GITHUB_REF} \
+          GITHUB_RUN_ID=${GITHUB_RUN_ID} \
+          GITHUB_SHA=${GITHUB_SHA} \
+          GITHUB_JOB=${GITHUB_JOB} \
+          CC=${{ matrix.compiler }} \
+          EXTRA_CFLAGS=-Werror \
+          artifactory-upload
+    if: true 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Create and run docker image
+        run: make -f docker/Makefile ${{ matrix.docker_image }}
+

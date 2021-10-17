@@ -22,80 +22,150 @@
 # THE SOFTWARE.
 #
 
-CC			:= /usr/bin/clang 
-#CXX			:= /usr/bin/clang++
+CC := clang
+#CXX := clang++
+
+
+TAR := tar
 
 #
 # Show / suppress compiler invocations. 
-# Set 'SUPP :=' to show them.
-# Set 'SUPP := @' to suppress compiler invocations.
+# Set 'Q :=' to show them.
+# Set 'Q := @' to suppress compiler invocations.
 #
-SUPP		:=
+Q :=
 
 #
 # Set name of the binary
 #
-BIN			:= crudebox 
+BIN := crudebox
+
+#
+# Utility variables to deal with spaces
+#
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
+
+
+#
+# Version information
+#
+VERSION_MAJOR	:= 0
+VERSION_MINOR	:= 1
+VERSION_PATCH	:= 0
+VERSION_CORE	:= $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+
+#
+# Paths for the build-, objects- and dependency-directories
+#
+BUILD_DIR		:= build
+RELEASE_DIR		:= $(BUILD_DIR)/release
+DEBUG_DIR		:= $(BUILD_DIR)/debug
+GEN_DIR			:= $(BUILD_DIR)/gen
+ANALYSIS_DIR	:= $(BUILD_DIR)/analysis
+
+RELEASE_BIN		:= $(RELEASE_DIR)/$(BIN)
+DEBUG_BIN		:= $(DEBUG_DIR)/$(BIN)
+ENVFILE			:= $(BUILD_DIR)/environment.txt
+TARBALL			:= $(BUILD_DIR)/$(BIN)-$(VERSION_CORE).tar.gz
+
+
+#
+# Set installation directory used in 'make install'
+#
+DESTDIR := /usr/local/bin
+
 
 ifndef BIN
 $(error No binary name specified)
 endif
 
-VERSION_MAJOR	:= 0
-VERSION_MINOR	:= 1
-VERSION_PATCH	:= 0
 
 #
 # Use the current unix time as the build timestamp.
 #
-UNIX_TIME	:= $(shell date --utc +"%s")
+UNIX_TIME := $(shell date --utc +"%s")
+BUILD_UUID := $(shell uuidgen --random)
+
+ifdef ARTIFACTORY_API_KEY
+
+OS_NAME := $(shell sed -E -n "s/^ID=([a-z0-9\._-]+)\s*$$/\1/p" /etc/os-release)
+DATE	:= $(shell date --utc --date="@$(UNIX_TIME)" +"%Y-%m-%d")
+TIME	:= $(shell date --utc --date="@$(UNIX_TIME)" +"%H:%M:%S")
+
+ARTIFACTORY_UPLOAD_URL := \
+	https://nuessle.jfrog.io/artifactory$\
+	/crudebox-local$\
+	;action=$(GITHUB_RUN_ID)$\
+	;branch=$(notdir $(GITHUB_REF))$\
+	;uuid=$(BUILD_UUID)$\
+	;commit=$(GITHUB_SHA)$\
+	;compiler=$(shell $(CC) --version | head -n 1 | tr -s " " "+")$\
+	;date=$(DATE)$\
+	;time=$(TIME)$\
+	;timezone=utc$\
+	;job=$(GITHUB_JOB)$\
+	;os=$(OS_NAME)$\
+	;version=$(VERSION_CORE)$\
+	;xdg_session_type=$(XDG_SESSION_TYPE)$\
+	/$(OS_NAME)$\
+	/$(XDG_SESSION_TYPE)$\
+	/$(notdir $(CC))$\
+	/$(DATE)$\
+	/$(TIME)
+
+endif
 
 #
 # Specifiy the additional wayland protocols
 #
-XDG_SHELL	:= /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
-XDG_SRC		:= gen/xdg-shell.c
-XDG_HDR		:= gen/xdg-shell-client.h
+XDG_SHELL := /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
+XDG_GEN := $(GEN_DIR)/xdg-shell
+XDG_SRC := $(XDG_GEN)/xdg-shell.c
+XDG_HDR := $(XDG_GEN)/xdg-shell-client.h
 
 #
 # Specify all source files. The paths should be relative to this file.
 #
-SRC			:= \
-		$(shell find src/ -iname "*.c") \
-		$(XDG_SRC)
+REG_SRC := $(shell find src/ -iname "*.c")
+GEN_SRC := $(XDG_SRC)
+SRC := $(REG_SRC) $(GEN_SRC)
 
 # 
 # Optional: This variable is used by the 'format' and 'tags' targets 
 # which are not necessary to build the target.
 #
-HDR			:= \
-		$(shell find src/ -iname "*.h") \
-		$(XDG_HDR)
+REG_HDR := $(shell find src/ -iname "*.h")
+GEN_HDR := $(XDG_HDR)
+HDR := $(REG_HDR) $(GEN_HDR)
 
 ifndef SRC
 $(error No source files specified)
 endif
 
+#
+# Define variable which can be used to check if the clang compiler
+# family is used for this invocation of make.
+#
+CLANG := $(findstring clang,$(CC))
 
 #
 # Uncomment if 'VPATH' is needed. 'VPATH' is a list of directories in which
 # make searches for source files.
 #
-EMPTY		:=
-SPACE		:= $(EMPTY) $(EMPTY)
-# VPATH 	:= $(subst $(SPACE),:,$(sort $(dir $(SRC))))
+# VPATH		:= $(subst $(SPACE),:,$(sort $(dir $(SRC))))
 
 RELPATHS	:= $(filter ../%, $(SRC))
 ifdef RELPATHS
 
 NAMES		:= $(notdir $(RELPATHS))
-UNIQUE		:= $(sort $(notdir $(RELPATHS)))
+UNIQUE		:= $(sort $(NAMES))
 
 #
 # Check for duplicate file names (not regarding directories).
 #
 ifneq ($(words $(NAMES)),$(words $(UNIQUE)))
-DUPS		:= $(shell printf "$(NAMES)" | tr -s " " "\n" | sort | uniq -d)
+DUPS		:= $(shell printf "$(NAMES)" | tr -s " " "\n" | sort --unique)
 DIRS		:= $(dir $(filter %$(DUPS), $(SRC)))
 $(error Detected name duplicates in relative paths [ $(DUPS) ] - [ $(DIRS) ])
 endif
@@ -110,114 +180,145 @@ SRC			:= $(filter-out ../%, $(SRC)) $(notdir $(RELPATHS))
 VPATH		:= $(subst $(SPACE),:, $(dir $(RELPATHS)))
 endif
 
-
-#
-# Paths for the build-, objects- and dependency-directories
-#
-BUILD_DIR	:= build
-TARGET		:= $(strip $(BUILD_DIR))/$(strip $(BIN))
-
-#
-# Set installation directory used in 'make install'
-#
-INSTALL_DIR		:= /usr/local/bin
-
 #
 # Define all object and dependency files from $(SRC) and get
-# a list of all inhabited directories. 'AUX' is used to prevent file paths
-# like build/objs/./srcdir/
+# a list of all inhabited directories. Special care is taken to prevent 
+# file paths like "build/./src/main.o"
 #
-AUX			:= $(patsubst ./%, %, $(SRC))
-C_SRC		:= $(filter %.c, $(AUX))
-CXX_SRC		:= $(filter %.cpp, $(AUX))
-C_OBJS		:= $(addprefix $(BUILD_DIR)/, $(patsubst %.c, %.o, $(C_SRC)))
-CXX_OBJS	:= $(addprefix $(BUILD_DIR)/, $(patsubst %.cpp, %.o, $(CXX_SRC)))
-OBJS		:= $(C_OBJS) $(CXX_OBJS)
-DIRS		:= $(BUILD_DIR) $(sort $(dir $(OBJS)))
+
+GEN_C_SRC := $(filter %.c,$(GEN_SRC))
+REG_C_SRC := $(filter %.c,$(REG_SRC))
+GEN_CXX_SRC := $(filter %.cpp,$(GEN_SRC))
+REG_CXX_SRC := $(filter %.cpp,$(REG_SRC))
+
+DEBUG_OBJS := \
+	$(patsubst $(BUILD_DIR)/%.c,$(DEBUG_DIR)/%.o,$(GEN_C_SRC)) \
+	$(patsubst $(BUILD_DIR)/%.cpp,$(DEBUG_DIR)/%.o,$(GEN_CXX_SRC)) \
+	$(patsubst %.c,$(DEBUG_DIR)/%.o,$(REG_C_SRC)) \
+	$(patsubst %.cpp,$(DEBUG_DIR)/%.o,$(REG_CXX_SRC))
+
+RELEASE_OBJS := \
+	$(patsubst $(BUILD_DIR)/%.c,$(RELEASE_DIR)/%.o,$(GEN_C_SRC)) \
+	$(patsubst $(BUILD_DIR)/%.cpp,$(RELEASE_DIR)/%.o,$(GEN_CXX_SRC)) \
+	$(patsubst %.c,$(RELEASE_DIR)/%.o,$(REG_C_SRC)) \
+	$(patsubst %.cpp,$(RELEASE_DIR)/%.o,$(REG_CXX_SRC))
+
+ANALYSIS_FILES := \
+	$(patsubst $(BUILD_DIR)/%.c,$(ANALYSIS_DIR)/%.txt,$(GEN_C_SRC)) \
+	$(patsubst $(BUILD_DIR)/%.cpp,$(ANALYSIS_DIR)/%.txt,$(GEN_CXX_SRC)) \
+	$(patsubst %.c,$(ANALYSIS_DIR)/%.txt,$(REG_C_SRC)) \
+	$(patsubst %.cpp,$(ANALYSIS_DIR)/%.txt,$(REG_CXX_SRC))
+
+DIRS := \
+	$(BUILD_DIR) \
+	$(DEBUG_DIR) \
+	$(RELEASE_DIR) \
+	$(GEN_DIR) \
+	$(ANALYSIS_DIR) \
+	$(sort $(dir $(DEBUG_OBJS))) \
+	$(sort $(dir $(RELEASE_OBJS))) \
+	$(sort $(dir $(GEN_SRC) $(GEN_HDR))) \
+	$(sort $(dir $(ANALYSIS_FILES)))
+
 
 #
-# Define dependency and JSON compilation database files.
+# Define dependency files
 #
-DEPS		:= $(patsubst %.o, %.d, $(OBJS))
-JSON		:= $(patsubst %.o, %.json, $(OBJS))
+DEPS := $(patsubst %.o,%.d,$(DEBUG_OBJS) $(RELEASE_OBJS))
+
+
+#
+# Enable additional useful targets, if clang is used.
+#
+ifdef CLANG
+RELEASE_JSON	:= $(patsubst %.o,%.json,$(RELEASE_OBJS))
+DEBUG_JSON		:= $(patsubst %.o,%.json,$(DEBUG_OBJS))
+
+RELEASE_CMDS	:= $(RELEASE_DIR)/compile_commands.json
+DEBUG_CMDS		:= $(DEBUG_DIR)/compile_commands.json
+DEFMAP			:= $(ANALYSIS_DIR)/externalDefMap.txt
+ANALYSIS_LINK	:= $(BUILD_DIR)/analysis-result
+endif
+
+#
+# Add additional prepocessor macro definitions
+#
+DEFS := \
+	-D_GNU_SOURCE \
+	-DCRUDEBOX_VERSION_MAJOR=\"$(VERSION_MAJOR)\" \
+	-DCRUDEBOX_VERSION_MINOR=\"$(VERSION_MINOR)\" \
+	-DCRUDEBOX_VERSION_PATCH=\"$(VERSION_PATCH)\" \
+	-DCOPYRIGHT_YEAR=\"$(shell date --date "@$(UNIX_TIME)" +"%Y")\"
+
+
+#
+# Automatically detect which windowing system is to be used
+#
+ifeq (x11,$(XDG_SESSION_TYPE))
+DEFS += -DCONFIG_USE_X11
+else ifeq (wayland,$(XDG_SESSION_TYPE))
+DEFS += -DCONFIG_USE_WAYLAND
+else
+$(error Unknown "XDG_SESSION_TYPE": Use either "x11" or "wayland")
+endif
 
 #
 # Add additional include paths
 #
-INCLUDES	:= \
-		-Igen/
+INC := \
+	-I$(XDG_GEN)
+
 
 #
 # Add used libraries which are configurable with pkg-config
 #
-PKGCONF		:= \
-		cairo \
-		freetype2 \
-		wayland-client \
-		xcb \
-		xcb-keysyms \
-		xkbcommon \
-# 		gstreamer-1.0 \
-# 		gstreamer-pbutils-1.0 \
-# 		libcurl \
-# 		libxml-2.0 \
+PKGCONF := \
+	cairo \
+	freetype2 \
+	wayland-client \
+	xcb \
+	xcb-keysyms \
+	xkbcommon \
+#	gstreamer-1.0 \
+#	gstreamer-pbutils-1.0 \
+#	libcurl \
+#	libxml-2.0 \
 
 #
 # Set non-pkg-configurable libraries flags 
 #
-LIBS		:= \
-#		-lstdc++fs \
-# 		-lm \
+LIBS := \
+#	-lstdc++fs \
+#	-lm \
 
 #
 # Set linker flags, here: 'rpath' for libraries in non-standard directories
 # If '-shared' is specified: '-fpic' or '-fPIC' should be set here 
 # as in the CFLAGS / CXXFLAGS
 #
-LDFLAGS		:= \
- 		-pthread \
-# 		-Wl,--start-group \
-# 		-Wl,--end-group \
-# 		-Wl,-rpath,/usr/local/lib \
-#		-shared \
-#		-fPIC \
-#		-fpic \
+LDFLAGS := \
+	-pthread \
+#	-Wl,--start-group \
+#	-Wl,--end-group \
+#	-Wl,-rpath,/usr/local/lib \
+#	-shared \
+#	-fPIC \
+#	-fpic \
 
-LDLIBS		:= $(LIBS)
+LDLIBS := $(LIBS)
 
 #
 # Set the preprocessor flags and also generate a dependency 
 # file "$(DEPS)" for each processed translation unit.
 #
-CPPFLAGS	= \
-		$(INCLUDES) \
-		-MMD \
-		-MF $(patsubst %.o, %.d, $@) \
-		-MT $@  \
-		-D_GNU_SOURCE \
-		-DCRUDEBOX_VERSION_MAJOR=\"$(VERSION_MAJOR)\" \
-		-DCRUDEBOX_VERSION_MINOR=\"$(VERSION_MINOR)\" \
-		-DCRUDEBOX_VERSION_PATCH=\"$(VERSION_PATCH)\" \
-		-DCOPYRIGHT_YEAR=\"$(shell date --date "@$(UNIX_TIME)" +"%Y")\"
 
-#
-# Automatically detect which windowing system is to be used
-#
-ifeq (x11,$(findstring x11,$(XDG_SESSION_TYPE)))
-CPPFLAGS	+= -DCONFIG_USE_X11
-else ifeq (wayland,$(findstring wayland,$(XDG_SESSION_TYPE)))
-CPPFLAGS	+= -DCONFIG_USE_WAYLAND
-else
-$(error Unknown "XDG_SESSION_TYPE": Use either "x11" or "wayland")
-endif
-
-#
-# If clang is used, generate a compilation database for each
-# processed translation unit.
-#
-ifeq (clang, $(findstring clang, $(CC) $(CXX)))
-CPPFLAGS	+= -MJ $(patsubst %.o, %.json, $@)
-endif
+CPPFLAGS = \
+	$(if $(CLANG),-MJ $(patsubst %.o,%.json,$@)) \
+	-MMD \
+	-MF $(patsubst %.o,%.d,$@) \
+	-MT $@ \
+	$(DEFS) \
+	$(INC) 
 
 
 #
@@ -225,31 +326,51 @@ endif
 # Specific flags for release and debug builds can be added later on
 # with target-specific variable values.
 #
-CFLAGS		:= \
-		-std=c11 \
-		-Wall \
-		-Wextra \
-		-pedantic \
-		-fstack-protector-strong \
-		-fno-plt \
-#		-Werror \
-#		-fpic \
-#		-fno-omit-frame-pointer \
+CFLAGS := \
+	-std=c11 \
+	-Wall \
+	-Wextra \
+	-pedantic \
+	-fstack-protector-strong \
+	-fno-plt \
+#	-Werror \
+#	-fpic \
+#	-fno-omit-frame-pointer \
 
 
-CXXFLAGS	:= \
-		-std=c++14 \
-		-Wall \
-		-Wextra \
-		-pedantic \
-		-fstack-protector-strong \
-		-fno-plt \
-#		-Werror \
-#		-fpic \
-#		-Weffc++ \
-#		-fvisibility-inlines-hidden \
-#		-fno-rtti \
-#		-fno-omit-frame-pointer \
+CXXFLAGS := \
+	-std=c++14 \
+	-Wall \
+	-Wextra \
+	-pedantic \
+	-fstack-protector-strong \
+	-fno-plt \
+	-Werror \
+#	-fpic \
+#	-Weffc++ \
+#	-fvisibility-inlines-hidden \
+#	-fno-rtti \
+#	-fno-omit-frame-pointer \
+
+
+ANALYZER := /usr/bin/clang --analyze
+
+ANALYZER_FLAGS = \
+	--analyzer-output html \
+	--output $(basename $@) \
+	-Xclang -analyzer-config -Xclang ctu-dir=$(ANALYSIS_DIR) \
+	-Xclang -analyzer-config -Xclang enable-naive-ctu-analysis=true \
+	-Xclang -analyzer-config -Xclang display-ctu-progress=true \
+	$(DEFS) \
+	$(INC) \
+	$(CFLAGS)
+
+
+TAR_FLAGS = \
+	--create \
+	--gzip \
+	--file $@
+
 
 #
 # Check if specified pkg-config libraries are available and abort
@@ -260,7 +381,7 @@ ifneq ($(PKGCONF),)
 ifneq ($(shell pkg-config --exists $(PKGCONF) && printf $$?), 0)
 ALL_PKGS	:= $(shell pkg-config --list-all | cut -f1 -d " ")
 OK_PKGS		:= $(sort $(filter $(PKGCONF),$(ALL_PKGS)))
-$(error Missing pkg-config libraries: [ $(filter-out $(OK_PKGS), $(PKGCONF)) ])
+$(error Missing pkg-config libraries: [ $(filter-out $(OK_PKGS),$(PKGCONF)) ])
 endif
 
 CFLAGS		+= $(shell pkg-config --cflags $(PKGCONF))
@@ -275,6 +396,7 @@ CPPFLAGS	+= $(EXTRA_CPPFLAGS)
 CFLAGS		+= $(EXTRA_CFLAGS)
 CXXFLAGS	+= $(EXTRA_CXXFLAGS)
 LDFLAGS		+= $(EXTRA_LDFLAGS)
+
 
 #
 # Setting terminal colors
@@ -292,75 +414,89 @@ RESET		:= \e[0m
 
 endif
 
-#
-# Get the MD5 hash value of a file passed as an argument.
-#
-checksum	= $$(sha256sum $(1) | cut -f1 -d " ")
 
+all: release tags $(RELEASE_CMDS) 
+release: $(RELEASE_BIN)
+debug: $(DEBUG_BIN)
+ci-build: tags artifactory-upload
 
 #
 # Note that if "-flto" is specified you may want to pass the optimization
 # flags used for compiling to the linker (as done below).
 #
-all: release
 
-analysis-build: CPPFLAGS 	+= -DNDEBUG -DTIMING_ANALYSIS
+analysis-build: CPPFLAGS	+= -DNDEBUG -DTIMING_ANALYSIS
 analysis-build: CFLAGS		+= -fno-omit-frame-pointer
-analysis-build: CXXFLAGS 	+= -fno-omit-frame-pointer
+analysis-build: CXXFLAGS	+= -fno-omit-frame-pointer
 analysis-build: release
 
-release: CPPFLAGS	+= -DNDEBUG
-release: CFLAGS		+= -O2 -flto -fdata-sections -ffunction-sections
-release: CXXFLAGS	+= -O2 -flto -fdata-sections -ffunction-sections
-release: LDFLAGS	+= -O2 -flto -Wl,--gc-sections
-release: $(TARGET)
+$(RELEASE_BIN): CPPFLAGS	+= -DNDEBUG
+$(RELEASE_BIN): CFLAGS		+= -O2 -flto -fdata-sections -ffunction-sections
+$(RELEASE_BIN): CXXFLAGS	+= -O2 -flto -fdata-sections -ffunction-sections
+$(RELEASE_BIN): LDFLAGS		+= -O2 -flto -Wl,--gc-sections
 
-debug: CPPFLAGS		+= -DMEM_NOLEAK
-debug: CFLAGS		+= -Og -g2
-debug: CXXFLAGS		+= -Og -g2
-debug: $(TARGET)
+$(DEBUG_BIN): CPPFLAGS		+= -DMEM_NOLEAK
+$(DEBUG_BIN): CFLAGS		+= -Og -g2
+$(DEBUG_BIN): CXXFLAGS		+= -Og -g2
 
-syntax-check: CFLAGS	+= -fsyntax-only
-syntax-check: CXXFLAGS	+= -fsyntax-only
-syntax-check: $(OBJS)
+syntax-check: CFLAGS   += -fsyntax-only
+syntax-check: CXXFLAGS += -fsyntax-only
+syntax-check: $(DEBUG_OBJS)
 
-
-$(TARGET): $(OBJS)
+$(RELEASE_BIN): $(RELEASE_OBJS)
 	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
-	$(SUPP)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
-#	$(SUPP)$(CXX) -o $@ $^ $(LDFLAGS) $(LDLIBS)
-	@printf "$(GREEN)Built target [ $@ ]: $(call checksum, $@)$(RESET)\n"
+	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
+	$(Q)strip --strip-all $@
+	@printf "$(GREEN)Built target [ $@ ]$(RESET)\n"
+	@sha256sum --tag $@
+
+$(DEBUG_BIN): $(DEBUG_OBJS)
+	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
+	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
+	@printf "$(GREEN)Built target [ $@ ]$(RESET)\n"
+	@sha256sum --tag $@
 
 -include $(DEPS)
 
 src/wl-window.c: $(XDG_HDR)
 
-$(BUILD_DIR)/%.o: %.c
-	@printf "$(BLUE)Building: $@$(RESET)\n"
-	$(SUPP)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+$(RELEASE_DIR)/%.o: %.c
+	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
-# $(BUILD_DIR)/%.o: %.cpp
-#	@printf "$(BLUE)Building: $@$(RESET)\n"
-#	$(SUPP)$(CXX) -c -o $@ $(CPPFLAGS) $(CXXFLAGS) $<
+$(RELEASE_DIR)/%.o: $(BUILD_DIR)/%.c
+	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
-$(XDG_SRC): $(XDG_SHELL)
+$(DEBUG_DIR)/%.o: %.c
+	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+
+$(DEBUG_DIR)/%.o: $(BUILD_DIR)/%.c
+	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+
+$(XDG_SRC): $(XDG_SHELL) | $(DIRS)
 	@printf "$(CYAN)Generating [ $@ ]$(RESET)\n"
-	$(SUPP)wayland-scanner private-code $< $@
+	$(Q)wayland-scanner private-code $< $@
 
-$(XDG_HDR): $(XDG_SHELL)
+$(XDG_HDR): $(XDG_SHELL) | $(DIRS)
 	@printf "$(CYAN)Generating [ $@ ]$(RESET)\n"
-	$(SUPP)wayland-scanner client-header $< $@
+	$(Q)wayland-scanner client-header $< $@
 
-$(OBJS): | $(DIRS)
+$(RELEASE_OBJS) $(DEBUG_OBJS): | $(DIRS)
 
 $(DIRS):
 	mkdir -p $@
 
-compile_commands.json: $(OBJS)
-	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(JSON) | json_pp > $@
+$(RELEASE_CMDS): $(RELEASE_OBJS)
+	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(RELEASE_JSON) | json_pp > $@
+
+$(DEBUG_CMDS): $(DEBUG_OBJS)
+	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(DEBUG_JSON) | json_pp > $@
 
 clean:
-	rm -rf $(XDG_SRC) $(XDG_HDR) $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)
 
 format:
 	$(SHELL) scripts/mk-format.sh
@@ -368,44 +504,73 @@ format:
 tags: $(HDR) $(SRC)
 	ctags -f tags $^
 
-install: $(TARGET)
-	cp $(TARGET) $(INSTALL_DIR)
+install: $(RELEASE_BIN)
+	cp $< $(DESTDIR)
 
 uninstall:
-	rm -f $(INSTALL_DIR)/$(BIN)
+	rm -f $(DESTDIR)/$(BIN)
 
-build/docker-workspace-image: docker/workspace/Dockerfile | $(DIRS)
-	docker build --tag crudebox:workspace $(^D) \
-		&& touch $@
+$(ENVFILE): | $(DIRS)
+	@env \
+		$(if $(ARTIFACTORY_API_KEY),ARTIFACTORY_API_KEY=) \
+		> $@
 
-docker-workspace: build/docker-workspace-image
-	docker run \
-		--interactive \
-		--tty \
-		--rm \
-		--env XDG_RUNTIME_DIR \
-		--env DISPLAY \
-		--hostname $(shell hostname) \
-		--volume ~/.Xauthority:/home/docker/.Xauthority \
-		--volume ${XDG_RUNTIME_DIR}:/run/user/1000 \
-		--volume ${PWD}:/home/docker/crudebox \
-		--volume /tmp/.X11-unix:/tmp/.X11-unix \
-		--workdir /home/docker/crudebox \
-		crudebox:workspace $(WORKSPACE_COMMAND)
+analysis: $(ANALYSIS_FILES)
 
-docker-clean:
-	docker image ls \
-		| grep "crudebox" \
-		| awk '{ print $$3 }' \
-		| xargs --no-run-if-empty docker image rm --force
-	rm -f build/docker-workspace-image
+$(ANALYSIS_LINK): | $(ANALYSIS_FILES)
+	ln --relative --symbolic --force  $(ANALYSIS_DIR) $@
+
+$(ANALYSIS_DIR)/%.txt: %.c $(DEFMAP)
+	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
+	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
+
+$(ANALYSIS_DIR)/%.txt: $(BUILD_DIR)/%.c $(DEFMAP)
+	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
+	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
+
+$(DEFMAP): $(DEBUG_CMDS) $(SRC)
+	$(Q)clang-extdef-mapping -p $(DEBUG_CMDS) $(SRC) > $@
+
+$(TARBALL): \
+		$(DEBUG_BIN) \
+		$(DEBUG_CMDS) \
+		$(RELEASE_BIN) \
+		$(RELEASE_CMDS) \
+		$(ENVFILE) \
+		$(ANALYSIS_LINK)
+	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
+	$(Q)find -H $^ -type f -size +0 \
+		| sed -e 's/$(@D)\///g' \
+		| $(TAR) $(TAR_FLAGS) --directory $(@D) --files-from -
+
+artifactory-upload: $(TARBALL)
+	@printf "$(MAGENTA)Uploading [ $^ ]$(RESET)\n"
+ifdef ARTIFACTORY_API_KEY
+	$(Q)curl \
+		--silent \
+		--show-error \
+		--write-out "\n" \
+		--request PUT \
+		--header "X-JFrog-Art-Api:${ARTIFACTORY_API_KEY}" \
+		--header "X-Checksum-Deploy:false" \
+		--header "X-Checksum-Sha256:$$(sha256sum $^ | cut --fields=1 -d " ")" \
+		--header "X-Checksum-Sha1:$$(sha1sum $^ | cut --fields=1 -d " ")" \
+		--upload-file $^ \
+		"$(ARTIFACTORY_UPLOAD_URL)/$(^F)"
+	@printf "$(GREEN)Uploaded [ $^ ]$(RESET)\n"
+else
+	@printf "** WARNING: $@: skipping upload due to missing API key\n"
+endif
+
 
 .PHONY: \
 	all \
+	analysis \
+	artifactory-upload \
+	ci-build \
 	clean \
 	debug \
-	docker-clean \
-	docker-workspace \
+	$(ENVFILE) \
 	format \
 	install \
 	release \
@@ -413,9 +578,11 @@ docker-clean:
 	uninstall
 
 .SILENT: \
+	$(ANALYSIS_LINK) \
 	clean \
-	compile_commands.json \
 	format \
+	$(RELEASE_CMDS) \
+	$(DEBUG_CMDS) \
 	tags \
 	$(DIRS)
 

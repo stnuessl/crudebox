@@ -1,3 +1,5 @@
+[![CI-Build](https://github.com/stnuessl/crudebox/actions/workflows/main.yaml/badge.svg)](https://github.com/stnuessl/crudebox/actions/workflows/main.yaml)
+
 # crudebox (DRAFT)
 
 A simple and fast program launcher.
