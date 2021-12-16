@@ -28,15 +28,21 @@ DOCKER_DIR			:= build/docker
 ARCH_BUILD_IMAGE	:= $(DOCKER_DIR)/archlinux-build-image
 ALPINE_BUILD_IMAGE	:= $(DOCKER_DIR)/alpine-build-image
 FEDORA_BUILD_IMAGE	:= $(DOCKER_DIR)/fedora-build-image
+UBUNTU_BUILD_IMAGE	:= $(DOCKER_DIR)/ubuntu-build-image
 
 ARCH_BUILD_TAG		:= crudebox:archlinux-build
 ALPINE_BUILD_TAG	:= crudebox:alpine-build
 FEDORA_BUILD_TAG	:= crudebox:fedora-build
+UBUNTU_BUILD_TAG	:= crudebox:ubuntu-build
 
 DIRS := \
 	$(DOCKER_DIR)
 
-all: $(ARCH_BUILD_IMAGE) $(ALPINE_BUILD_IMAGE) $(FEDORA_BUILD_IMAGE)
+all: \
+	$(ARCH_BUILD_IMAGE) \
+	$(ALPINE_BUILD_IMAGE) \
+	$(FEDORA_BUILD_IMAGE) \
+	$(UBUNTU_BUILD_IMAGE)
 
 $(ARCH_BUILD_IMAGE): docker/archlinux-build/Dockerfile | $(DIRS)
 	$(Q)docker build --tag $(ARCH_BUILD_TAG) $(^D)
@@ -84,6 +90,22 @@ fedora-build: $(FEDORA_BUILD_IMAGE)
 		--workdir /crudebox \
 		$(FEDORA_BUILD_TAG) $(CMD)
 
+$(UBUNTU_BUILD_IMAGE): docker/ubuntu-build/Dockerfile | $(DIRS)
+	$(Q)docker build --tag $(UBUNTU_BUILD_TAG) $(^D)
+	$(Q)touch $@
+
+ubuntu-build: $(UBUNTU_BUILD_IMAGE)
+	$(Q)docker run \
+		--interactive \
+		--tty=$(if $(CMD),false,true) \
+		--rm \
+		--env XDG_SESSION_TYPE \
+		--env ARTIFACTORY_API_KEY \
+		--volume ${PWD}:/crudebox \
+		--user $$(id -u):$$(id -g) \
+		--workdir /crudebox \
+		$(UBUNTU_BUILD_TAG) $(CMD)
+
 
 
 #build/docker-workspace-image: docker/workspace/Dockerfile | $(DIRS)
@@ -110,13 +132,17 @@ docker-clean:
 		| grep "crudebox" \
 		| awk '{ print $$3 }' \
 		| xargs --no-run-if-empty docker image rm --force
-	rm -f build/docker-workspace-image
+	rm -rf $(DOCKER_DIR)
 
 $(DIRS):
 	mkdir -p $@
 
 .PHONY: \
 	all \
+	archlinux-build \
+	alpine-build \
+	fedora-build \
+	ubuntu-build \
 	docker-clean
 
 .SILENT: \
