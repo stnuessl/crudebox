@@ -11,6 +11,7 @@ RUN apt-get update && apt-get --assume-yes install \
     clang \
     clang-tools \
     curl \
+    cppcheck \
     universal-ctags \
     gcc \
     libcairo2-dev \

@@ -9,6 +9,7 @@ FROM archlinux:base
 RUN pacman -Syu --noconfirm \
     cairo \
     clang \
+    cppcheck \
     ctags \
     freetype2 \
     gcc \

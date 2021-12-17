@@ -62,12 +62,8 @@ BUILD_DIR		:= build
 RELEASE_DIR		:= $(BUILD_DIR)/release
 DEBUG_DIR		:= $(BUILD_DIR)/debug
 GEN_DIR			:= $(BUILD_DIR)/gen
-ANALYSIS_DIR	:= $(BUILD_DIR)/analysis
-
-RELEASE_BIN		:= $(RELEASE_DIR)/$(BIN)
-DEBUG_BIN		:= $(DEBUG_DIR)/$(BIN)
-ENVFILE			:= $(BUILD_DIR)/environment.txt
-TARBALL			:= $(BUILD_DIR)/$(BIN)-$(VERSION_CORE).tar.gz
+ANALYZER_DIR	:= $(BUILD_DIR)/clang-analyzer
+CPPCHECK_DIR	:= $(BUILD_DIR)/cppcheck-analysis
 
 
 #
@@ -203,22 +199,37 @@ RELEASE_OBJS := \
 	$(patsubst %.c,$(RELEASE_DIR)/%.o,$(REG_C_SRC)) \
 	$(patsubst %.cpp,$(RELEASE_DIR)/%.o,$(REG_CXX_SRC))
 
-ANALYSIS_FILES := \
-	$(patsubst $(BUILD_DIR)/%.c,$(ANALYSIS_DIR)/%.txt,$(GEN_C_SRC)) \
-	$(patsubst $(BUILD_DIR)/%.cpp,$(ANALYSIS_DIR)/%.txt,$(GEN_CXX_SRC)) \
-	$(patsubst %.c,$(ANALYSIS_DIR)/%.txt,$(REG_C_SRC)) \
-	$(patsubst %.cpp,$(ANALYSIS_DIR)/%.txt,$(REG_CXX_SRC))
+ANALYZER_FILES := \
+	$(patsubst $(BUILD_DIR)/%.c,$(ANALYZER_DIR)/%.txt,$(GEN_C_SRC)) \
+	$(patsubst $(BUILD_DIR)/%.cpp,$(ANALYZER_DIR)/%.txt,$(GEN_CXX_SRC)) \
+	$(patsubst %.c,$(ANALYZER_DIR)/%.txt,$(REG_C_SRC)) \
+	$(patsubst %.cpp,$(ANALYZER_DIR)/%.txt,$(REG_CXX_SRC))
+
+
+#
+# Paths to default targets.
+#
+RELEASE_BIN		:= $(RELEASE_DIR)/$(BIN)
+DEBUG_BIN		:= $(DEBUG_DIR)/$(BIN)
+RELEASE_CMDS	:= $(RELEASE_DIR)/compile_commands.json
+DEBUG_CMDS		:= $(DEBUG_DIR)/compile_commands.json
+RELEASE_JSON	:= $(patsubst %.o,%.json,$(RELEASE_OBJS))
+DEBUG_JSON		:= $(patsubst %.o,%.json,$(DEBUG_OBJS))
+ENVFILE			:= $(BUILD_DIR)/environment.txt
+TARBALL			:= $(BUILD_DIR)/$(BIN)-$(VERSION_CORE).tar.gz
+
 
 DIRS := \
 	$(BUILD_DIR) \
 	$(DEBUG_DIR) \
 	$(RELEASE_DIR) \
 	$(GEN_DIR) \
-	$(ANALYSIS_DIR) \
+	$(ANALYZER_DIR) \
+	$(CPPCHECK_DIR) \
 	$(sort $(dir $(DEBUG_OBJS))) \
 	$(sort $(dir $(RELEASE_OBJS))) \
 	$(sort $(dir $(GEN_SRC) $(GEN_HDR))) \
-	$(sort $(dir $(ANALYSIS_FILES)))
+	$(sort $(dir $(ANALYZER_FILES)))
 
 
 #
@@ -228,16 +239,17 @@ DEPS := $(patsubst %.o,%.d,$(DEBUG_OBJS) $(RELEASE_OBJS))
 
 
 #
-# Enable additional useful targets, if clang is used.
+# Enable additional useful targets, if clang is available.
 #
-ifdef CLANG
-RELEASE_JSON	:= $(patsubst %.o,%.json,$(RELEASE_OBJS))
-DEBUG_JSON		:= $(patsubst %.o,%.json,$(DEBUG_OBJS))
+ifneq (,$(shell type -fP clang-extdef-mapping))
+DEFMAP			:= $(ANALYZER_DIR)/externalDefMap.txt
+ANALYZER_LINK	:= $(BUILD_DIR)/clang-analysis
+endif
 
-RELEASE_CMDS	:= $(RELEASE_DIR)/compile_commands.json
-DEBUG_CMDS		:= $(DEBUG_DIR)/compile_commands.json
-DEFMAP			:= $(ANALYSIS_DIR)/externalDefMap.txt
-ANALYSIS_LINK	:= $(BUILD_DIR)/analysis-result
+ifneq (,$(shell type -P cppcheck))
+CPPCHECK := cppcheck
+CPPCHECK_REPORT := $(BUILD_DIR)/cppcheck
+CPPCHECK_OUTPUT := $(CPPCHECK_DIR)/cppcheck.xml
 endif
 
 #
@@ -358,13 +370,23 @@ ANALYZER := /usr/bin/clang --analyze
 ANALYZER_FLAGS = \
 	--analyzer-output html \
 	--output $(basename $@) \
-	-Xclang -analyzer-config -Xclang ctu-dir=$(ANALYSIS_DIR) \
+	-Xclang -analyzer-config -Xclang ctu-dir=$(ANALYZER_DIR) \
 	-Xclang -analyzer-config -Xclang enable-naive-ctu-analysis=true \
 	-Xclang -analyzer-config -Xclang display-ctu-progress=true \
 	$(DEFS) \
 	$(INC) \
 	$(CFLAGS)
 
+CPPCHECK_FLAGS := \
+	--enable=all \
+	--inconclusive \
+	--cppcheck-build-dir=$(CPPCHECK_DIR) \
+	--template=gcc \
+	--library=posix \
+	--suppress=unusedFunction \
+	--suppress=missingIncludeSystem \
+	--inline-suppr \
+	--xml
 
 TAR_FLAGS = \
 	--create \
@@ -415,10 +437,9 @@ RESET		:= \e[0m
 endif
 
 
-all: release tags $(RELEASE_CMDS) 
+all: release $(RELEASE_CMDS) tags 
 release: $(RELEASE_BIN)
 debug: $(DEBUG_BIN)
-ci-build: tags artifactory-upload
 
 #
 # Note that if "-flto" is specified you may want to pass the optimization
@@ -463,18 +484,86 @@ src/wl-window.c: $(XDG_HDR)
 $(RELEASE_DIR)/%.o: %.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+ifndef CLANG
+	@printf '%s' \
+		'{' \
+			'"directory":"$(CURDIR)",' \
+			'"file":"$<",' \
+			'"output":"$@",' \
+			'"arguments": [' \
+				'"$(CC)",' \
+				'"-c",' \
+				'"-o",' \
+				'"$@",' \
+				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				'"$<"' \
+			']' \
+		'},' \
+	> $(RELEASE_DIR)/$*.json
+endif
 
 $(RELEASE_DIR)/%.o: $(BUILD_DIR)/%.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+ifndef CLANG
+	@printf '%s' \
+		'{' \
+			'"directory":"$(CURDIR)",' \
+			'"file":"$<",' \
+			'"output":"$@",' \
+			'"arguments": [' \
+				'"$(CC)",' \
+				'"-c",' \
+				'"-o",' \
+				'"$@",' \
+				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				'"$<"' \
+			']' \
+		'},' \
+	> $(RELEASE_DIR)/$*.json
+endif
 
 $(DEBUG_DIR)/%.o: %.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+ifndef CLANG
+	@printf '%s' \
+		'{' \
+			'"directory":"$(CURDIR)",' \
+			'"file":"$<",' \
+			'"output":"$@",' \
+			'"arguments": [' \
+				'"$(CC)",' \
+				'"-c",' \
+				'"-o",' \
+				'"$@",' \
+				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				'"$<"' \
+			']' \
+		'},' \
+	> $(DEBUG_DIR)/$*.json
+endif
 
 $(DEBUG_DIR)/%.o: $(BUILD_DIR)/%.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+ifndef CLANG
+	@printf '%s' \
+		'{' \
+			'"directory":"$(CURDIR)",' \
+			'"file":"$<",' \
+			'"output":"$@",' \
+			'"arguments": [' \
+				'"$(CC)",' \
+				'"-c",' \
+				'"-o",' \
+				'"$@",' \
+				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				'"$<"' \
+			']' \
+		'},' \
+	> $(DEBUG_DIR)/$*.json
+endif
 
 $(XDG_SRC): $(XDG_SHELL) | $(DIRS)
 	@printf "$(CYAN)Generating [ $@ ]$(RESET)\n"
@@ -515,29 +604,40 @@ $(ENVFILE): | $(DIRS)
 		$(if $(ARTIFACTORY_API_KEY),ARTIFACTORY_API_KEY=) \
 		> $@
 
-analysis: $(ANALYSIS_FILES)
+clang-analysis: $(ANALYZER_FILES)
 
-$(ANALYSIS_LINK): | $(ANALYSIS_FILES)
-	ln --relative --symbolic --force  $(ANALYSIS_DIR) $@
+$(ANALYZER_LINK): | $(ANALYZER_FILES)
+	ln --relative --symbolic --force  $(ANALYZER_DIR) $@
 
-$(ANALYSIS_DIR)/%.txt: %.c $(DEFMAP)
+$(ANALYZER_DIR)/%.txt: %.c $(DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
 	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
 
-$(ANALYSIS_DIR)/%.txt: $(BUILD_DIR)/%.c $(DEFMAP)
+$(ANALYZER_DIR)/%.txt: $(BUILD_DIR)/%.c $(DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
 	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
 
 $(DEFMAP): $(DEBUG_CMDS) $(SRC)
-	$(Q)clang-extdef-mapping -p $(DEBUG_CMDS) $(SRC) > $@
+	$(Q)clang-extdef-mapping -p $(DEBUG_CMDS) $(SRC) > $@ || rm -f $@
+
+$(CPPCHECK): $(CPPCHECK_REPORT)
+
+$(CPPCHECK_OUTPUT): $(DEBUG_CMDS) | $(DIRS)
+	@printf "$(YELLOW)Analyzing project [ $< ]$(RESET)\n"
+	$(Q)cppcheck $(CPPCHECK_FLAGS) --project=$< --output-file=$@
+
+$(CPPCHECK_REPORT): $(CPPCHECK_OUTPUT) 
+	@printf "$(YELLOW)Generating report [ $@ ]$(RESET)\n"
+	$(Q)cppcheck-htmlreport --file=$< --title=$(BIN) --report-dir=$@
 
 $(TARBALL): \
-		$(DEBUG_BIN) \
-		$(DEBUG_CMDS) \
 		$(RELEASE_BIN) \
 		$(RELEASE_CMDS) \
+		$(DEBUG_BIN) \
+		$(DEBUG_CMDS) \
 		$(ENVFILE) \
-		$(ANALYSIS_LINK)
+		$(ANALYZER_LINK) \
+		$(CPPCHECK_REPORT)
 	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
 	$(Q)find -H $^ -type f -size +0 \
 		| sed -e 's/$(@D)\///g' \
@@ -565,9 +665,8 @@ endif
 
 .PHONY: \
 	all \
-	analysis \
+	clang-analysis \
 	artifactory-upload \
-	ci-build \
 	clean \
 	debug \
 	$(ENVFILE) \
@@ -578,7 +677,7 @@ endif
 	uninstall
 
 .SILENT: \
-	$(ANALYSIS_LINK) \
+	$(ANALYZER_LINK) \
 	clean \
 	format \
 	$(RELEASE_CMDS) \

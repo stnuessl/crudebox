@@ -10,6 +10,8 @@ RUN dnf install --assumeyes \
     cairo-devel \
     clang \
     clang-tools-extra \
+    cppcheck \
+    cppcheck-htmlreport \
     ctags \
     freetype-devel \
     gcc \
