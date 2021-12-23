@@ -378,20 +378,24 @@ ANALYZER_FLAGS = \
 	$(CFLAGS)
 
 CPPCHECK_FLAGS := \
+	--cppcheck-build-dir=$(CPPCHECK_DIR) \
 	--enable=all \
 	--inconclusive \
-	--cppcheck-build-dir=$(CPPCHECK_DIR) \
-	--template=gcc \
-	--library=posix \
-	--suppress=unusedFunction \
-	--suppress=missingIncludeSystem \
 	--inline-suppr \
+	--library=posix \
+	--platform=native \
+	--suppress=allocaCalled \
+	--suppress=missingInclude \
+	--suppress=readdirCalled \
+	--suppress=unusedFunction \
+	--template=gcc \
+	--verbose \
 	--xml
 
 TAR_FLAGS = \
 	--create \
-	--gzip \
-	--file $@
+	--file $@ \
+	--gzip
 
 
 #
@@ -631,6 +635,7 @@ $(CPPCHECK_OUTPUT): $(DEBUG_CMDS) | $(DIRS)
 
 $(CPPCHECK_REPORT): $(CPPCHECK_OUTPUT) 
 	@printf "$(YELLOW)Generating report [ $@ ]$(RESET)\n"
+	@rm -rf $@
 	$(Q)cppcheck-htmlreport --file=$< --title=$(BIN) --report-dir=$@
 
 $(TARBALL): \
