@@ -662,7 +662,8 @@ ifdef ARTIFACTORY_API_KEY
 		"$(ARTIFACTORY_UPLOAD_URL)/$(^F)"
 	@printf "$(GREEN)Uploaded [ $^ ]$(RESET)\n"
 else
-	@printf "** WARNING: $@: skipping upload due to missing API key\n"
+	@printf "** ERROR: $@: skipping upload due to missing API key\n"
+	@false
 endif
 
 
