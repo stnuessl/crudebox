@@ -1,4 +1,4 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 
 #
 # The MIT License (MIT)
@@ -36,10 +36,10 @@ FILES=$(git diff --name-only --cached --diff-filter=AM | grep "\.[ch]$")
 if [ "${FILES}" != "" ]; then
 
     # Format all found files
-    clang-format -i ${FILES}
+    clang-format -i "${FILES}"
 
     # Ensure that the changes to these files are also added to the staging area
-    git add ${FILES}
+    git add "${FILES}"
 fi
 
 exit 0

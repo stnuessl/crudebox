@@ -29,8 +29,8 @@
 # to automatically create a designated array initializer list.
 #
 
-function main() {
-    local matches=$(grep \
+main() {
+    matches=$(grep \
         --only-matching \
         --no-filename \
         -E "\bE[A-Z0-9]*\b\s+[0-9]+" \
@@ -39,7 +39,7 @@ function main() {
     printf "[0] = \"OK\"\n"
 
     for str in ${matches}; do
-        printf "[${str}] = \"${str}\",\n"
+        printf "[%s] = \"%s\",\n" "${str}" "${str}"
     done
 }
 
