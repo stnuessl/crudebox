@@ -62,8 +62,6 @@ BUILD_DIR		:= build
 RELEASE_DIR		:= $(BUILD_DIR)/release
 DEBUG_DIR		:= $(BUILD_DIR)/debug
 GEN_DIR			:= $(BUILD_DIR)/gen
-ANALYZER_DIR	:= $(BUILD_DIR)/clang-analyzer
-CPPCHECK_DIR	:= $(BUILD_DIR)/cppcheck-analysis
 
 
 #
@@ -187,24 +185,14 @@ REG_C_SRC := $(filter %.c,$(REG_SRC))
 GEN_CXX_SRC := $(filter %.cpp,$(GEN_SRC))
 REG_CXX_SRC := $(filter %.cpp,$(REG_SRC))
 
-DEBUG_OBJS := \
-	$(patsubst $(BUILD_DIR)/%.c,$(DEBUG_DIR)/%.o,$(GEN_C_SRC)) \
-	$(patsubst $(BUILD_DIR)/%.cpp,$(DEBUG_DIR)/%.o,$(GEN_CXX_SRC)) \
-	$(patsubst %.c,$(DEBUG_DIR)/%.o,$(REG_C_SRC)) \
-	$(patsubst %.cpp,$(DEBUG_DIR)/%.o,$(REG_CXX_SRC))
-
 RELEASE_OBJS := \
 	$(patsubst $(BUILD_DIR)/%.c,$(RELEASE_DIR)/%.o,$(GEN_C_SRC)) \
 	$(patsubst $(BUILD_DIR)/%.cpp,$(RELEASE_DIR)/%.o,$(GEN_CXX_SRC)) \
 	$(patsubst %.c,$(RELEASE_DIR)/%.o,$(REG_C_SRC)) \
 	$(patsubst %.cpp,$(RELEASE_DIR)/%.o,$(REG_CXX_SRC))
 
-ANALYZER_FILES := \
-	$(patsubst $(BUILD_DIR)/%.c,$(ANALYZER_DIR)/%.txt,$(GEN_C_SRC)) \
-	$(patsubst $(BUILD_DIR)/%.cpp,$(ANALYZER_DIR)/%.txt,$(GEN_CXX_SRC)) \
-	$(patsubst %.c,$(ANALYZER_DIR)/%.txt,$(REG_C_SRC)) \
-	$(patsubst %.cpp,$(ANALYZER_DIR)/%.txt,$(REG_CXX_SRC))
-
+DEBUG_OBJS := \
+	$(patsubst $(RELEASE_DIR)/%.o,$(DEBUG_DIR)/%.o,$(RELEASE_OBJS))
 
 #
 # Paths to default targets.
@@ -218,18 +206,14 @@ DEBUG_JSON		:= $(patsubst %.o,%.json,$(DEBUG_OBJS))
 ENVFILE			:= $(BUILD_DIR)/environment.txt
 TARBALL			:= $(BUILD_DIR)/$(BIN)-$(VERSION_CORE).tar.gz
 
-
 DIRS := \
 	$(BUILD_DIR) \
 	$(DEBUG_DIR) \
 	$(RELEASE_DIR) \
 	$(GEN_DIR) \
-	$(ANALYZER_DIR) \
-	$(CPPCHECK_DIR) \
 	$(sort $(dir $(DEBUG_OBJS))) \
 	$(sort $(dir $(RELEASE_OBJS))) \
 	$(sort $(dir $(GEN_SRC) $(GEN_HDR))) \
-	$(sort $(dir $(ANALYZER_FILES)))
 
 
 #
@@ -239,17 +223,75 @@ DEPS := $(patsubst %.o,%.d,$(DEBUG_OBJS) $(RELEASE_OBJS))
 
 
 #
-# Enable additional useful targets, if clang is available.
+# Variables for the clang analyzer
 #
 ifneq (,$(shell type -fP clang-extdef-mapping))
-DEFMAP			:= $(ANALYZER_DIR)/externalDefMap.txt
-ANALYZER_LINK	:= $(BUILD_DIR)/clang-analysis
+ANALYZER := /usr/bin/clang --analyze
+ANALYZER_DIR := $(BUILD_DIR)/clang-analyzer
+ANALYZER_FILES := \
+	$(patsubst $(RELEASE_DIR)/%.o,$(ANALYZER_DIR)/%.txt,$(RELEASE_OBJS))
+
+ANALYZER_FLAGS = \
+	--analyzer-output html \
+	--output $(basename $@) \
+	-Xclang -analyzer-config -Xclang ctu-dir=$(ANALYZER_DIR) \
+	-Xclang -analyzer-config -Xclang enable-naive-ctu-analysis=true \
+	-Xclang -analyzer-config -Xclang display-ctu-progress=true \
+	$(DEFS) \
+	$(INC) \
+	$(CFLAGS)
+
+ANALYZER_DEFMAP := $(ANALYZER_DIR)/externalDefMap.txt
+ANALYZER_OUTPUT := $(BUILD_DIR)/clang-analysis
+
+DIRS += $(ANALYZER_DIR) $(sort $(dir $(ANALYZER_FILES)))
 endif
 
-ifneq (,$(shell type -P cppcheck))
+#
+# Variables for cppcheck
+#
+ifneq (,$(shell type -fP cppcheck))
 CPPCHECK := cppcheck
-CPPCHECK_REPORT := $(BUILD_DIR)/cppcheck
-CPPCHECK_OUTPUT := $(CPPCHECK_DIR)/cppcheck.xml
+CPPCHECK_DIR := $(BUILD_DIR)/cppcheck-analysis
+CPPCHECK_FLAGS := \
+	--cppcheck-build-dir=$(CPPCHECK_DIR) \
+	--enable=all \
+	--inconclusive \
+	--inline-suppr \
+	--library=posix \
+	--platform=native \
+	--suppress=allocaCalled \
+	--suppress=missingInclude \
+	--suppress=readdirCalled \
+	--suppress=unusedFunction \
+	--template=gcc \
+	--verbose \
+	--xml
+
+CPPCHECK_OUTPUT := $(BUILD_DIR)/cppcheck
+CPPCHECK_RESULTS := $(CPPCHECK_DIR)/cppcheck.xml
+
+DIRS += $(CPPCHECK_DIR)
+endif
+
+#
+# Variables for shellcheck
+#
+ifneq (,$(shell type -fP shellcheck))
+SHELLCHECK_DIR := $(BUILD_DIR)/shellcheck
+SHELLCHECK := shellcheck
+SHELLCHECK_FLAGS := \
+	--color=auto \
+	--external-sources \
+	--format gcc \
+	--enable all \
+	--norc \
+	--shell $(notdir $(SHELL))
+
+SHELLCHECK_INPUT := $(shell find . -name "*.sh")
+SHELLCHECK_OUTPUT := $(SHELLCHECK_DIR)/shellcheck.txt
+
+DIRS += $(SHELLCHECK_DIR)
 endif
 
 #
@@ -365,33 +407,6 @@ CXXFLAGS := \
 #	-fno-omit-frame-pointer \
 
 
-ANALYZER := /usr/bin/clang --analyze
-
-ANALYZER_FLAGS = \
-	--analyzer-output html \
-	--output $(basename $@) \
-	-Xclang -analyzer-config -Xclang ctu-dir=$(ANALYZER_DIR) \
-	-Xclang -analyzer-config -Xclang enable-naive-ctu-analysis=true \
-	-Xclang -analyzer-config -Xclang display-ctu-progress=true \
-	$(DEFS) \
-	$(INC) \
-	$(CFLAGS)
-
-CPPCHECK_FLAGS := \
-	--cppcheck-build-dir=$(CPPCHECK_DIR) \
-	--enable=all \
-	--inconclusive \
-	--inline-suppr \
-	--library=posix \
-	--platform=native \
-	--suppress=allocaCalled \
-	--suppress=missingInclude \
-	--suppress=readdirCalled \
-	--suppress=unusedFunction \
-	--template=gcc \
-	--verbose \
-	--xml
-
 TAR_FLAGS = \
 	--create \
 	--file $@ \
@@ -498,11 +513,7 @@ ifndef CLANG
 			'"file":"$<",' \
 			'"output":"$@",' \
 			'"arguments": [' \
-				'"$(CC)",' \
-				'"-c",' \
-				'"-o",' \
-				'"$@",' \
-				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				$(foreach x,$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
 				'"$<"' \
 			']' \
 		'},' \
@@ -519,11 +530,7 @@ ifndef CLANG
 			'"file":"$<",' \
 			'"output":"$@",' \
 			'"arguments": [' \
-				'"$(CC)",' \
-				'"-c",' \
-				'"-o",' \
-				'"$@",' \
-				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				$(foreach x,$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
 				'"$<"' \
 			']' \
 		'},' \
@@ -540,11 +547,7 @@ ifndef CLANG
 			'"file":"$<",' \
 			'"output":"$@",' \
 			'"arguments": [' \
-				'"$(CC)",' \
-				'"-c",' \
-				'"-o",' \
-				'"$@",' \
-				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				$(foreach x,$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
 				'"$<"' \
 			']' \
 		'},' \
@@ -561,11 +564,7 @@ ifndef CLANG
 			'"file":"$<",' \
 			'"output":"$@",' \
 			'"arguments": [' \
-				'"$(CC)",' \
-				'"-c",' \
-				'"-o",' \
-				'"$@",' \
-				$(foreach x, $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
+				$(foreach x,$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS),'"$(x)",') \
 				'"$<"' \
 			']' \
 		'},' \
@@ -613,30 +612,36 @@ $(ENVFILE): | $(DIRS)
 
 clang-analysis: $(ANALYZER_FILES)
 
-$(ANALYZER_LINK): | $(ANALYZER_FILES)
+$(ANALYZER_OUTPUT): | $(ANALYZER_FILES)
 	ln --relative --symbolic --force  $(ANALYZER_DIR) $@
 
-$(ANALYZER_DIR)/%.txt: %.c $(DEFMAP)
+$(ANALYZER_DIR)/%.txt: %.c $(ANALYZER_DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
 	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
 
-$(ANALYZER_DIR)/%.txt: $(BUILD_DIR)/%.c $(DEFMAP)
+$(ANALYZER_DIR)/%.txt: $(BUILD_DIR)/%.c $(ANALYZER_DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
 	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
 
-$(DEFMAP): $(DEBUG_CMDS) $(SRC)
+$(ANALYZER_DEFMAP): $(DEBUG_CMDS) $(SRC)
 	$(Q)clang-extdef-mapping -p $(DEBUG_CMDS) $(SRC) > $@ || rm -f $@
 
-$(CPPCHECK): $(CPPCHECK_REPORT)
+$(CPPCHECK): $(CPPCHECK_OUTPUT)
 
-$(CPPCHECK_OUTPUT): $(DEBUG_CMDS) | $(DIRS)
+$(CPPCHECK_RESULTS): $(DEBUG_CMDS) | $(DIRS)
 	@printf "$(YELLOW)Analyzing project [ $< ]$(RESET)\n"
 	$(Q)cppcheck $(CPPCHECK_FLAGS) --project=$< --output-file=$@
 
-$(CPPCHECK_REPORT): $(CPPCHECK_OUTPUT) 
+$(CPPCHECK_OUTPUT): $(CPPCHECK_RESULTS) 
 	@printf "$(YELLOW)Generating report [ $@ ]$(RESET)\n"
 	@rm -rf $@
 	$(Q)cppcheck-htmlreport --file=$< --title=$(BIN) --report-dir=$@
+
+$(SHELLCHECK): $(SHELLCHECK_OUTPUT)
+
+$(SHELLCHECK_OUTPUT): $(SHELLCHECK_INPUT) | $(DIRS)
+	$(Q)shellcheck $(SHELLCHECK_FLAGS) $^ > $@
+	@cat $@
 
 $(TARBALL): \
 		$(RELEASE_BIN) \
@@ -644,8 +649,9 @@ $(TARBALL): \
 		$(DEBUG_BIN) \
 		$(DEBUG_CMDS) \
 		$(ENVFILE) \
-		$(ANALYZER_LINK) \
-		$(CPPCHECK_REPORT)
+		$(ANALYZER_OUTPUT) \
+		$(CPPCHECK_OUTPUT) \
+		$(SHELLCHECK_OUTPUT)
 	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
 	$(Q)find -H $^ -type f -size +0 \
 		| sed -e 's/$(@D)\///g' \
@@ -682,11 +688,12 @@ endif
 	format \
 	install \
 	release \
+	$(SHELLCHECK)
 	syntax-check \
 	uninstall
 
 .SILENT: \
-	$(ANALYZER_LINK) \
+	$(ANALYZER_OUTPUT) \
 	clean \
 	format \
 	$(RELEASE_CMDS) \
