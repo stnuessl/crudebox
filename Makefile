@@ -608,6 +608,8 @@ uninstall:
 $(ENVFILE): | $(DIRS)
 	@env \
 		$(if $(ARTIFACTORY_API_KEY),ARTIFACTORY_API_KEY=) \
+		$(if $(DOCKER_USERNAME),DOCKER_USERNAME=) \
+		$(if $(DOCKER_PASSWORD),DOCKER_PASSWORD=) \
 		> $@
 
 clang-analysis: $(ANALYZER_FILES)

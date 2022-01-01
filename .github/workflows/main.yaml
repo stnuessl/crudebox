@@ -18,6 +18,8 @@ jobs:
         docker_image: [archlinux-build, fedora-build, ubuntu-build]
     env:
       ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       XDG_SESSION_TYPE: ${{ matrix.xdg_session_type }}
       CMD: |
         make \
@@ -34,4 +36,12 @@ jobs:
         uses: actions/checkout@v2
       - name: Create and run docker image
         run: make -f docker/Makefile ${{ matrix.docker_image }}
-
+#      - name: Scan docker image
+#        run: |
+#          docker login \
+#            --username ${DOCKER_USERNAME} \
+#            --password ${DOCKER_PASSWORD}
+#          make \
+#            -f docker/Makefile \
+#            build/docker/scan/${{ matrix.docker_image }}.txt
+#          docker logout

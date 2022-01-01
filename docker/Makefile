@@ -24,6 +24,11 @@
 
 Q :=
 
+ARCH_DOCKERFILE		:= docker/archlinux-build/Dockerfile
+ALPINE_DOCKERFILE	:= docker/alpine-build/Dockerfile
+FEDORA_DOCKERFILE	:= docker/fedora-build/Dockerfile
+UBUNTU_DOCKERFILE	:= docker/ubuntu-build/Dockerfile
+
 DOCKER_DIR			:= build/docker
 ARCH_BUILD_IMAGE	:= $(DOCKER_DIR)/archlinux-build-image
 ALPINE_BUILD_IMAGE	:= $(DOCKER_DIR)/alpine-build-image
@@ -35,8 +40,20 @@ ALPINE_BUILD_TAG	:= crudebox:alpine-build
 FEDORA_BUILD_TAG	:= crudebox:fedora-build
 UBUNTU_BUILD_TAG	:= crudebox:ubuntu-build
 
+SCAN_DIR			:= $(DOCKER_DIR)/scan
+SCAN_ARCH_BUILD		:= $(SCAN_DIR)/archlinux-build.txt
+SCAN_FEDORA_BUILD	:= $(SCAN_DIR)/fedora-build.txt
+SCAN_UBUNTU_BUILD	:= $(SCAN_DIR)/ubuntu-build.txt
+
+DOCKER_SCAN_FLAGS := \
+	--token 3526b487-387e-42e9-8993-934f9621185c \
+	--accept-license \
+	--severity low
+
+
 DIRS := \
-	$(DOCKER_DIR)
+	$(DOCKER_DIR) \
+	$(SCAN_DIR)
 
 all: \
 	$(ARCH_BUILD_IMAGE) \
@@ -44,7 +61,7 @@ all: \
 	$(FEDORA_BUILD_IMAGE) \
 	$(UBUNTU_BUILD_IMAGE)
 
-$(ARCH_BUILD_IMAGE): docker/archlinux-build/Dockerfile | $(DIRS)
+$(ARCH_BUILD_IMAGE): $(ARCH_DOCKERFILE) | $(DIRS)
 	$(Q)docker build --tag $(ARCH_BUILD_TAG) $(^D)
 	$(Q)touch $@
 
@@ -60,7 +77,7 @@ archlinux-build: $(ARCH_BUILD_IMAGE)
 		--workdir /crudebox \
 		$(ARCH_BUILD_TAG) $(CMD)
 
-$(ALPINE_BUILD_IMAGE): docker/alpine-build/Dockerfile | $(DIRS)
+$(ALPINE_BUILD_IMAGE): $(ALPINE_DOCKERFILE) | $(DIRS)
 	$(Q)docker build --tag $(ALPINE_BUILD_TAG) $(^D)
 	$(Q)touch $@
 
@@ -74,7 +91,7 @@ alpine-build: $(ALPINE_BUILD_IMAGE)
 		--workdir /home/crudebox \
 		$(ALPINE_BUILD_TAG) $(CMD)
 
-$(FEDORA_BUILD_IMAGE): docker/fedora-build/Dockerfile | $(DIRS)
+$(FEDORA_BUILD_IMAGE): $(FEDORA_DOCKERFILE) | $(DIRS)
 	$(Q)docker build --tag $(FEDORA_BUILD_TAG) $(^D)
 	$(Q)touch $@
 
@@ -90,7 +107,7 @@ fedora-build: $(FEDORA_BUILD_IMAGE)
 		--workdir /crudebox \
 		$(FEDORA_BUILD_TAG) $(CMD)
 
-$(UBUNTU_BUILD_IMAGE): docker/ubuntu-build/Dockerfile | $(DIRS)
+$(UBUNTU_BUILD_IMAGE): $(UBUNTU_DOCKERFILE) | $(DIRS)
 	$(Q)docker build --tag $(UBUNTU_BUILD_TAG) $(^D)
 	$(Q)touch $@
 
@@ -127,6 +144,21 @@ ubuntu-build: $(UBUNTU_BUILD_IMAGE)
 #		--workdir /home/docker/crudebox \
 #		crudebox:workspace $(WORKSPACE_COMMAND)
 
+$(SCAN_ARCH_BUILD): $(ARCH_BUILD_IMAGE) | $(DIRS)
+	$(Q)docker scan $(DOCKER_SCAN_FLAGS) \
+		--file $(ARCH_DOCKERFILE) \
+		$(ARCH_BUILD_TAG) | tee $@
+
+$(SCAN_FEDORA_BUILD): $(FEDORA_BUILD_IMAGE) | $(DIRS)
+	$(Q)docker scan $(DOCKER_SCAN_FLAGS) \
+		--file $(FEDORA_DOCKERFILE) \
+		$(FEDORA_BUILD_TAG) | tee $@
+
+$(SCAN_UBUNTU_BUILD): $(UBUNTU_BUILD_IMAGE) | $(DIRS)
+	$(Q)docker scan $(DOCKER_SCAN_FLAGS) \
+		--file $(UBUNTU_DOCKERFILE) \
+		$(UBUNTU_BUILD_TAG) | tee $@
+
 docker-clean:
 	docker image ls \
 		| grep "crudebox" \
@@ -141,6 +173,8 @@ $(DIRS):
 	all \
 	archlinux-build \
 	alpine-build \
+	docker-login \
+	docker-scan \
 	fedora-build \
 	ubuntu-build \
 	docker-clean
