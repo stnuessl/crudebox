@@ -22,11 +22,11 @@
 # THE SOFTWARE.
 #
 
+SHELL := bash -o pipefail
 CC := clang
-#CXX := clang++
-
-
+CXX := clang++
 TAR := tar
+PKGCONF := pkg-config
 
 #
 # Show / suppress compiler invocations. 
@@ -286,7 +286,7 @@ SHELLCHECK_FLAGS := \
 	--format gcc \
 	--enable all \
 	--norc \
-	--shell $(notdir $(SHELL))
+	--shell $(firstword $(notdir $(SHELL)))
 
 SHELLCHECK_INPUT := $(shell find . -name "*.sh")
 SHELLCHECK_OUTPUT := $(SHELLCHECK_DIR)/shellcheck.txt
@@ -326,7 +326,7 @@ INC := \
 #
 # Add used libraries which are configurable with pkg-config
 #
-PKGCONF := \
+PKGCONF_LIBS := \
 	cairo \
 	freetype2 \
 	wayland-client \
@@ -414,21 +414,26 @@ TAR_FLAGS = \
 
 
 #
-# Check if specified pkg-config libraries are available and abort
-# if they are not.
+# Enable addtional targets if there are pkgconf libraries defined
 #
-ifneq ($(PKGCONF),)
+ifneq (,$(shell type -f $(PKGCONF)))
+ifneq (,$(PKGCONF_LIBS))
+PKGCONF_CHECK	:= pkgconf-check
+PKGCONF_DIR		:= $(BUILD_DIR)/pkgconf
+PKGCONF_VERSION	:= $(PKGCONF_DIR)/pkgconf-version.txt
+PKGCONF_DATA	:= $(PKGCONF_DIR)/pkgconf-libs.json
 
-ifneq ($(shell pkg-config --exists $(PKGCONF) && printf $$?), 0)
-ALL_PKGS	:= $(shell pkg-config --list-all | cut -f1 -d " ")
-OK_PKGS		:= $(sort $(filter $(PKGCONF),$(ALL_PKGS)))
-$(error Missing pkg-config libraries: [ $(filter-out $(OK_PKGS),$(PKGCONF)) ])
+DIRS += $(PKGCONF_DIR)
+
+#
+# Add build flags for all required libraries
+#
+CFLAGS		+= $(shell $(PKGCONF) --cflags $(PKGCONF_LIBS))
+CXXFLAGS	+= $(shell $(PKGCONF) --cflags $(PKGCONF_LIBS))
+LDLIBS		+= $(shell $(PKGCONF) --libs $(PKGCONF_LIBS))
+endif
 endif
 
-CFLAGS		+= $(shell pkg-config --cflags $(PKGCONF))
-CXXFLAGS	+= $(shell pkg-config --cflags $(PKGCONF))
-LDLIBS		+= $(shell pkg-config --libs $(PKGCONF))
-endif
 
 #
 # Append extra arguments passed on the command-line
@@ -612,6 +617,21 @@ $(ENVFILE): | $(DIRS)
 		$(if $(DOCKER_PASSWORD),DOCKER_PASSWORD=) \
 		> $@
 
+$(PKGCONF_CHECK): $(PKGCONF_VERSION) $(PKGCONF_DATA)
+	@printf "$(GREEN)Performed [ $@ ]$(RESET)\n"
+
+$(PKGCONF_VERSION): | $(DIRS)
+	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
+	$(Q)$(PKGCONF) --version 2>&1 > $@ || (rm -f $@ && false)
+
+$(PKGCONF_DATA): | $(DIRS)
+	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
+	$(Q)$(PKGCONF) --print-errors --print-provides $(PKGCONF_LIBS) \
+		| tr --squeeze-repeats " =" " " \
+		| column --table-name pkgconf --table-columns library,version --json \
+		| json_pp \
+		| tee $@ || (rm -f $@ && false)
+
 clang-analysis: $(ANALYZER_FILES)
 
 $(ANALYZER_OUTPUT): | $(ANALYZER_FILES)
@@ -626,7 +646,7 @@ $(ANALYZER_DIR)/%.txt: $(BUILD_DIR)/%.c $(ANALYZER_DEFMAP)
 	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
 
 $(ANALYZER_DEFMAP): $(DEBUG_CMDS) $(SRC)
-	$(Q)clang-extdef-mapping -p $(DEBUG_CMDS) $(SRC) > $@ || rm -f $@
+	$(Q)clang-extdef-mapping -p $(DEBUG_CMDS) $(SRC) > $@ || (rm -f $@ && false)
 
 $(CPPCHECK): $(CPPCHECK_OUTPUT)
 
@@ -653,7 +673,9 @@ $(TARBALL): \
 		$(ENVFILE) \
 		$(ANALYZER_OUTPUT) \
 		$(CPPCHECK_OUTPUT) \
-		$(SHELLCHECK_OUTPUT)
+		$(SHELLCHECK_OUTPUT) \
+		$(PKGCONF_VERSION) \
+		$(PKGCONF_DATA)
 	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
 	$(Q)find -H $^ -type f -size +0 \
 		| sed -e 's/$(@D)\///g' \
@@ -681,16 +703,17 @@ endif
 
 
 .PHONY: \
+	$(ENVFILE) \
+	$(PKGCONF_CHECK) \
+	$(SHELLCHECK) \
 	all \
-	clang-analysis \
 	artifactory-upload \
+	clang-analysis \
 	clean \
 	debug \
-	$(ENVFILE) \
 	format \
 	install \
 	release \
-	$(SHELLCHECK)
 	syntax-check \
 	uninstall
 

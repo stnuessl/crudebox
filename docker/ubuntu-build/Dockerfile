@@ -8,6 +8,7 @@
 FROM ubuntu:rolling
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get --assume-yes install \
+    bsdmainutils \
     clang \
     clang-tools \
     curl \
