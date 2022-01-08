@@ -203,7 +203,8 @@ RELEASE_CMDS	:= $(RELEASE_DIR)/compile_commands.json
 DEBUG_CMDS		:= $(DEBUG_DIR)/compile_commands.json
 RELEASE_JSON	:= $(patsubst %.o,%.json,$(RELEASE_OBJS))
 DEBUG_JSON		:= $(patsubst %.o,%.json,$(DEBUG_OBJS))
-ENVFILE			:= $(BUILD_DIR)/environment.txt
+ENVFILE			:= $(BUILD_DIR)/env.txt
+OS_RELEASE		:= $(BUILD_DIR)/os-release.txt
 TARBALL			:= $(BUILD_DIR)/$(BIN)-$(VERSION_CORE).tar.gz
 
 DIRS := \
@@ -221,12 +222,20 @@ DIRS := \
 #
 DEPS := $(patsubst %.o,%.d,$(DEBUG_OBJS) $(RELEASE_OBJS))
 
+VERSION_FILE := $(BUILD_DIR)/versions.txt
+VERSION_LIST := \
+	"$$(make --version)" \
+	"$$($(CC) --version)" \
+	"$$(curl --version)" \
+	"$$($(TAR) --version)" \
+	"$$(column --version)" \
+	"$$(sed --version)"
 
 #
 # Variables for the clang analyzer
 #
 ifneq (,$(shell type -fP clang-extdef-mapping))
-ANALYZER := /usr/bin/clang --analyze
+ANALYZER := clang --analyze
 ANALYZER_DIR := $(BUILD_DIR)/clang-analyzer
 ANALYZER_FILES := \
 	$(patsubst $(RELEASE_DIR)/%.o,$(ANALYZER_DIR)/%.txt,$(RELEASE_OBJS))
@@ -245,6 +254,9 @@ ANALYZER_DEFMAP := $(ANALYZER_DIR)/externalDefMap.txt
 ANALYZER_OUTPUT := $(BUILD_DIR)/clang-analysis
 
 DIRS += $(ANALYZER_DIR) $(sort $(dir $(ANALYZER_FILES)))
+ifndef CLANG
+VERSION_LIST += "$$($(ANALYZER) --version)"
+endif
 endif
 
 #
@@ -272,6 +284,7 @@ CPPCHECK_OUTPUT := $(BUILD_DIR)/cppcheck
 CPPCHECK_RESULTS := $(CPPCHECK_DIR)/cppcheck.xml
 
 DIRS += $(CPPCHECK_DIR)
+VERSION_LIST += "$$($(CPPCHECK) --version)"
 endif
 
 #
@@ -292,6 +305,7 @@ SHELLCHECK_INPUT := $(shell find . -name "*.sh")
 SHELLCHECK_OUTPUT := $(SHELLCHECK_DIR)/shellcheck.txt
 
 DIRS += $(SHELLCHECK_DIR)
+VERSION_LIST += "$$($(SHELLCHECK) --version)"
 endif
 
 #
@@ -420,10 +434,11 @@ ifneq (,$(shell type -f $(PKGCONF)))
 ifneq (,$(PKGCONF_LIBS))
 PKGCONF_CHECK	:= pkgconf-check
 PKGCONF_DIR		:= $(BUILD_DIR)/pkgconf
-PKGCONF_VERSION	:= $(PKGCONF_DIR)/pkgconf-version.txt
-PKGCONF_DATA	:= $(PKGCONF_DIR)/pkgconf-libs.json
+PKGCONF_VERSION	:= $(PKGCONF_DIR)/version.txt
+PKGCONF_DATA	:= $(PKGCONF_DIR)/libs.json
 
 DIRS += $(PKGCONF_DIR)
+VERSION_LIST += "$(PKGCONF) $$($(PKGCONF) --version)"
 
 #
 # Add build flags for all required libraries
@@ -617,6 +632,12 @@ $(ENVFILE): | $(DIRS)
 		$(if $(DOCKER_PASSWORD),DOCKER_PASSWORD=) \
 		> $@
 
+$(OS_RELEASE): /etc/os-release | $(DIRS)
+	cp -f $< $@
+
+$(VERSION_FILE): | $(DIRS)
+	@printf "%s\n--\n" $(VERSION_LIST) > $@ || (rm -f $@ && false)
+
 $(PKGCONF_CHECK): $(PKGCONF_VERSION) $(PKGCONF_DATA)
 	@printf "$(GREEN)Performed [ $@ ]$(RESET)\n"
 
@@ -652,7 +673,7 @@ $(CPPCHECK): $(CPPCHECK_OUTPUT)
 
 $(CPPCHECK_RESULTS): $(DEBUG_CMDS) | $(DIRS)
 	@printf "$(YELLOW)Analyzing project [ $< ]$(RESET)\n"
-	$(Q)cppcheck $(CPPCHECK_FLAGS) --project=$< --output-file=$@
+	$(Q)$(CPPCHECK) $(CPPCHECK_FLAGS) --project=$< --output-file=$@
 
 $(CPPCHECK_OUTPUT): $(CPPCHECK_RESULTS) 
 	@printf "$(YELLOW)Generating report [ $@ ]$(RESET)\n"
@@ -662,20 +683,21 @@ $(CPPCHECK_OUTPUT): $(CPPCHECK_RESULTS)
 $(SHELLCHECK): $(SHELLCHECK_OUTPUT)
 
 $(SHELLCHECK_OUTPUT): $(SHELLCHECK_INPUT) | $(DIRS)
-	$(Q)shellcheck $(SHELLCHECK_FLAGS) $^ > $@
-	@cat $@
+	$(Q)$(SHELLCHECK) $(SHELLCHECK_FLAGS) $^ | tee $@ || (rm -f $@ && false)
 
 $(TARBALL): \
 		$(RELEASE_BIN) \
 		$(RELEASE_CMDS) \
 		$(DEBUG_BIN) \
 		$(DEBUG_CMDS) \
-		$(ENVFILE) \
 		$(ANALYZER_OUTPUT) \
 		$(CPPCHECK_OUTPUT) \
-		$(SHELLCHECK_OUTPUT) \
+		$(ENVFILE) \
+		$(OS_RELEASE) \
+		$(PKGCONF_DATA) \
 		$(PKGCONF_VERSION) \
-		$(PKGCONF_DATA)
+		$(SHELLCHECK_OUTPUT) \
+		$(VERSION_FILE)
 	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
 	$(Q)find -H $^ -type f -size +0 \
 		| sed -e 's/$(@D)\///g' \
