@@ -197,14 +197,14 @@ void list_view_destroy(struct list_view *view)
 }
 
 void list_view_size_hint(const struct list_view *view,
-                         const cairo_font_extents_t *extents,
+                         const cairo_font_extents_t *ext,
                          uint32_t *width,
                          uint32_t *height)
 {
     uint32_t w, h;
 
-    w = (uint32_t) (ARRAY_SIZE(view->glyphs) * extents->max_x_advance);
-    h = view->max_entries * (uint32_t) (1.25 * extents->height);
+    w = (uint32_t) (ARRAY_SIZE(view->glyphs) * ext->max_x_advance);
+    h = view->max_entries * (uint32_t) (1.25 * ext->height);
 
     /* Account for a separation line between all entries. */
     h += view->max_entries - 1;

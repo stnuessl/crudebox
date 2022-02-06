@@ -39,9 +39,9 @@
 
 static void merge(struct item *dst,
                   struct item *s1,
-                  struct item *e1,
+                  const struct item *e1,
                   struct item *s2,
-                  struct item *e2)
+                  const struct item *e2)
 {
     while (s1 < e1 && s2 < e2) {
         if (strverscmp(s1->name, s2->name) <= 0)
@@ -196,7 +196,7 @@ item_list_do_cache_read(struct item_list *list, int fd, const char *dirs)
     items = xmalloc(n_max * sizeof(*items));
 
     while (ptr) {
-        char *str = ptr;
+        str = ptr;
         ptr = strchr(ptr, '\n');
 
         /* Convert the newline to a terminating null byte */
@@ -230,16 +230,16 @@ item_list_do_cache_read(struct item_list *list, int fd, const char *dirs)
 
 static bool cache_dirty(const struct stat *st_cache, char *dirs)
 {
-    struct stat st;
-    char *path;
-    int err;
-
     /*
      * Iterate over all directories contained in 'dirs' and check if they
      * were modified after the current cache file was modified.
      * If this is the case, the cache is considered dirty.
      */
     while (dirs) {
+        struct stat st;
+        char *path;
+        int err;
+
         path = dirs;
         dirs = strchr(dirs, ':');
 
@@ -365,7 +365,6 @@ item_list_do_load(struct item_list *list, const char *cache, char *dirs)
         while (1) {
             struct dirent *entry = readdir(dir);
             struct stat st;
-            int err;
 
             if (!entry)
                 break;

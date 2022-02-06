@@ -54,7 +54,7 @@ struct config_parser {
 
 void config_parser_init(struct config_parser *parser,
                         struct config_parser_event *events,
-                        int num_lookups);
+                        int num_events);
 
 void config_parser_destroy(struct config_parser *parser);
 

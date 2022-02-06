@@ -69,8 +69,6 @@ static void mem_set_u32(struct config_parser_event *event, char *value)
 
 static void mem_set_color(struct config_parser_event *event, char *value)
 {
-    uint32_t x;
-
     if (unlikely(strprefix(value, "0x"))) {
         die("%s.%s: value \"%s\" must be hexadecimal and start with \"0x\"\n",
             event->section,
@@ -81,8 +79,9 @@ static void mem_set_color(struct config_parser_event *event, char *value)
     mem_set_u32(event, value);
 
     if (strlen(value) <= 8) {
-        x = *(uint32_t *) event->mem;
+        uint32_t x;
 
+        x = *(uint32_t *) event->mem;
         x = (x << 8) | 0xff;
 
         *(uint32_t *) event->mem = x;
