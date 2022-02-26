@@ -1,4 +1,4 @@
-[![CI-Build](https://github.com/stnuessl/crudebox/actions/workflows/main.yaml/badge.svg)](https://github.com/stnuessl/crudebox/actions/workflows/main.yaml)
+[![CI](https://github.com/stnuessl/crudebox/actions/workflows/main.yaml/badge.svg)](https://github.com/stnuessl/crudebox/actions/workflows/main.yaml)
 
 # crudebox (DRAFT)
 
