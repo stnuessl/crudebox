@@ -24,7 +24,7 @@
 
 Q :=
 
-SHELL := sh -o pipefail
+SHELL := bash -o pipefail
 
 ARCH_DOCKERFILE		:= docker/archlinux-build/Dockerfile
 ALPINE_DOCKERFILE	:= docker/alpine-build/Dockerfile

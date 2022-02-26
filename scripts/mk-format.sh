@@ -31,9 +31,9 @@
 #
 
 # Get all (A)dded or (M)odified .c or .h files in the staging area
-FILES=$(git diff --name-only --cached --diff-filter=AM | grep "\.[ch]$")
+FILES=$(git diff --name-only --cached --diff-filter=AM -- "*.[ch]$")
 
-if [ "${FILES}" != "" ]; then
+if [[ -n ${FILES} ]]; then
 
     # Format all found files
     clang-format -i "${FILES}"

@@ -30,11 +30,11 @@
 #
 
 main() {
-    matches=$(grep \
-        --only-matching \
-        --no-filename \
-        -E "\bE[A-Z0-9]*\b\s+[0-9]+" \
-        /usr/include/asm-generic/errno*.h | awk '{ print $1 }');
+    matches=$(sed \
+        --regexp-extended \
+        --silent \
+        's/^#define\s+(E[A-Z0-9]+)\s+[0-9]+.*$/\1/p' \
+        /usr/include/asm-generic/errno*.h)
 
     printf "[0] = \"OK\"\n"
 
