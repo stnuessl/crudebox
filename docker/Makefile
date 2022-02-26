@@ -24,6 +24,8 @@
 
 Q :=
 
+SHELL := sh -o pipefail
+
 ARCH_DOCKERFILE		:= docker/archlinux-build/Dockerfile
 ALPINE_DOCKERFILE	:= docker/alpine-build/Dockerfile
 FEDORA_DOCKERFILE	:= docker/fedora-build/Dockerfile
@@ -147,7 +149,7 @@ ubuntu-build: $(UBUNTU_BUILD_IMAGE)
 $(SCAN_ARCH_BUILD): $(ARCH_BUILD_IMAGE) | $(DIRS)
 	$(Q)docker scan $(DOCKER_SCAN_FLAGS) \
 		--file $(ARCH_DOCKERFILE) \
-		$(ARCH_BUILD_TAG) | tee $@
+		$(ARCH_BUILD_TAG) | tee $@ || rm -f $@
 
 $(SCAN_FEDORA_BUILD): $(FEDORA_BUILD_IMAGE) | $(DIRS)
 	$(Q)docker scan $(DOCKER_SCAN_FLAGS) \

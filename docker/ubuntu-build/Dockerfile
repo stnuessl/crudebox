@@ -13,6 +13,7 @@ RUN apt-get update && apt-get --assume-yes install \
     clang-tools \
     curl \
     cppcheck \
+    findutils \
     universal-ctags \
     gcc \
     libcairo2-dev \
@@ -22,7 +23,6 @@ RUN apt-get update && apt-get --assume-yes install \
     libxcb-keysyms1-dev \
     libxkbcommon-dev \
     make \
-    perl \
     pkg-config \
     uuid-runtime \
     wayland-protocols \

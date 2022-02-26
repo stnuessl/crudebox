@@ -13,12 +13,12 @@ RUN dnf install --assumeyes \
     cppcheck \
     cppcheck-htmlreport \
     ctags \
+    findutils \
     freetype-devel \
     gcc \
     libxcb-devel \
     libxkbcommon-devel \
     make \
-    perl \
     pkgconfig \
     python \
     util-linux \

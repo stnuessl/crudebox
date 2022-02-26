@@ -11,12 +11,12 @@ RUN pacman -Syu --noconfirm \
     clang \
     cppcheck \
     ctags \
+    findutils \
     freetype2 \
     gcc \
     libxcb \
     libxkbcommon \
     make \
-    perl \
     pkgconfig \
     python \
     util-linux \

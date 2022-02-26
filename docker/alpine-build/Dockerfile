@@ -7,18 +7,19 @@
 
 FROM alpine:3.14
 RUN apk add --no-cache \
-binutils \
-cairo-dev \
-freetype-dev \
-gcc \
-libc-dev \
-libxcb-dev \
-libxkbcommon-dev \
-make \
-pkgconf \
-wayland-dev \
-wayland-protocols \
-xcb-util-keysyms-dev
+    binutils \
+    cairo-dev \
+    findutils \
+    freetype-dev \
+    gcc \
+    libc-dev \
+    libxcb-dev \
+    libxkbcommon-dev \
+    make \
+    pkgconf \
+    wayland-dev \
+    wayland-protocols \
+    xcb-util-keysyms-dev
 RUN adduser --disabled-password --shell /usr/bin/bash alpine
 USER alpine
 WORKDIR /home/alpine

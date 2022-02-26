@@ -201,8 +201,6 @@ RELEASE_BIN		:= $(RELEASE_DIR)/$(BIN)
 DEBUG_BIN		:= $(DEBUG_DIR)/$(BIN)
 RELEASE_CMDS	:= $(RELEASE_DIR)/compile_commands.json
 DEBUG_CMDS		:= $(DEBUG_DIR)/compile_commands.json
-RELEASE_JSON	:= $(patsubst %.o,%.json,$(RELEASE_OBJS))
-DEBUG_JSON		:= $(patsubst %.o,%.json,$(DEBUG_OBJS))
 ENVFILE			:= $(BUILD_DIR)/env.txt
 OS_RELEASE		:= $(BUILD_DIR)/os-release.txt
 TARBALL			:= $(BUILD_DIR)/$(BIN)-$(VERSION_CORE).tar.gz
@@ -284,7 +282,7 @@ CPPCHECK_OUTPUT := $(BUILD_DIR)/cppcheck
 CPPCHECK_RESULTS := $(CPPCHECK_DIR)/cppcheck.xml
 
 DIRS += $(CPPCHECK_DIR)
-VERSION_LIST += "$$($(CPPCHECK) --version)"
+VERSION_LIST += "$$(cppcheck --version)"
 endif
 
 #
@@ -305,7 +303,7 @@ SHELLCHECK_INPUT := $(shell find . -name "*.sh")
 SHELLCHECK_OUTPUT := $(SHELLCHECK_DIR)/shellcheck.txt
 
 DIRS += $(SHELLCHECK_DIR)
-VERSION_LIST += "$$($(SHELLCHECK) --version)"
+VERSION_LIST += "$$(shellcheck --version)"
 endif
 
 #
@@ -364,14 +362,15 @@ LIBS := \
 # If '-shared' is specified: '-fpic' or '-fPIC' should be set here 
 # as in the CFLAGS / CXXFLAGS
 #
-LDFLAGS := \
+LDFLAGS = \
 	-pthread \
-#	-Wl,--start-group \
 #	-Wl,--end-group \
+#	-Wl,--start-group \
+#	-Wl,-Map=$@.map \
 #	-Wl,-rpath,/usr/local/lib \
-#	-shared \
 #	-fPIC \
 #	-fpic \
+#	-shared \
 
 LDLIBS := $(LIBS)
 
@@ -508,7 +507,7 @@ syntax-check: $(DEBUG_OBJS)
 
 $(RELEASE_BIN): $(RELEASE_OBJS)
 	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
-	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
+	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS) 
 	$(Q)strip --strip-all $@
 	@printf "$(GREEN)Built target [ $@ ]$(RESET)\n"
 	@sha256sum --tag $@
@@ -605,10 +604,12 @@ $(DIRS):
 	mkdir -p $@
 
 $(RELEASE_CMDS): $(RELEASE_OBJS)
-	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(RELEASE_JSON) | json_pp > $@
+	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
+		> $@ || (rm -f $@ && false)
 
 $(DEBUG_CMDS): $(DEBUG_OBJS)
-	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(DEBUG_JSON) | json_pp > $@
+	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
+		> $@ || (rm -f $@ && false)
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -650,7 +651,6 @@ $(PKGCONF_DATA): | $(DIRS)
 	$(Q)$(PKGCONF) --print-errors --print-provides $(PKGCONF_LIBS) \
 		| tr --squeeze-repeats " =" " " \
 		| column --table-name pkgconf --table-columns library,version --json \
-		| json_pp \
 		| tee $@ || (rm -f $@ && false)
 
 clang-analysis: $(ANALYZER_FILES)
@@ -660,7 +660,7 @@ $(ANALYZER_OUTPUT): | $(ANALYZER_FILES)
 
 $(ANALYZER_DIR)/%.txt: %.c $(ANALYZER_DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
-	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
+	$(Q)clang --analyze  $(ANALYZER_FLAGS) $< 2>&1 | tee $@
 
 $(ANALYZER_DIR)/%.txt: $(BUILD_DIR)/%.c $(ANALYZER_DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
@@ -673,7 +673,7 @@ $(CPPCHECK): $(CPPCHECK_OUTPUT)
 
 $(CPPCHECK_RESULTS): $(DEBUG_CMDS) | $(DIRS)
 	@printf "$(YELLOW)Analyzing project [ $< ]$(RESET)\n"
-	$(Q)$(CPPCHECK) $(CPPCHECK_FLAGS) --project=$< --output-file=$@
+	$(Q)cppcheck $(CPPCHECK_FLAGS) --project=$< --output-file=$@
 
 $(CPPCHECK_OUTPUT): $(CPPCHECK_RESULTS) 
 	@printf "$(YELLOW)Generating report [ $@ ]$(RESET)\n"
@@ -683,7 +683,7 @@ $(CPPCHECK_OUTPUT): $(CPPCHECK_RESULTS)
 $(SHELLCHECK): $(SHELLCHECK_OUTPUT)
 
 $(SHELLCHECK_OUTPUT): $(SHELLCHECK_INPUT) | $(DIRS)
-	$(Q)$(SHELLCHECK) $(SHELLCHECK_FLAGS) $^ | tee $@ || (rm -f $@ && false)
+	$(Q)shellcheck $(SHELLCHECK_FLAGS) $^ | tee $@ || (rm -f $@ && false)
 
 $(TARBALL): \
 		$(RELEASE_BIN) \
@@ -719,7 +719,7 @@ ifdef ARTIFACTORY_API_KEY
 		"$(ARTIFACTORY_UPLOAD_URL)/$(^F)"
 	@printf "$(GREEN)Uploaded [ $^ ]$(RESET)\n"
 else
-	@printf "** ERROR: $@: skipping upload due to missing API key\n"
+	@printf "** ERROR: $@: \"ARTIFACTORY_API_KEY\" not specified\n"
 	@false
 endif
 
