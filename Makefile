@@ -353,7 +353,7 @@ PKGCONF_LIBS := \
 #
 # Set non-pkg-configurable libraries flags 
 #
-LIBS := \
+LDLIBS := \
 #	-lstdc++fs \
 #	-lm \
 
@@ -362,7 +362,7 @@ LIBS := \
 # If '-shared' is specified: '-fpic' or '-fPIC' should be set here 
 # as in the CFLAGS / CXXFLAGS
 #
-LDFLAGS = \
+LDFLAGS := \
 	-pthread \
 #	-Wl,--end-group \
 #	-Wl,--start-group \
@@ -372,7 +372,6 @@ LDFLAGS = \
 #	-fpic \
 #	-shared \
 
-LDLIBS := $(LIBS)
 
 #
 # Set the preprocessor flags and also generate a dependency 
@@ -380,7 +379,6 @@ LDLIBS := $(LIBS)
 #
 
 CPPFLAGS = \
-	$(if $(CLANG),-MJ $(patsubst %.o,%.json,$@)) \
 	-MMD \
 	-MF $(patsubst %.o,%.d,$@) \
 	-MT $@ \
@@ -462,6 +460,34 @@ CPPCHECK_FLAGS	+= $(EXTRA_CPPCHECK_FLAGS)
 
 
 #
+# Define unit test targets
+#
+ifeq (,$(shell $(PKGCONF) --print-errors --exists criterion 2>&1))
+UT_DIR := $(BUILD_DIR)/test
+UT_REPORT := $(UT_DIR)/report.xml
+UT_BIN := $(UT_DIR)/crudebox
+UT_CPUS := $(shell nproc)
+UT_SRC := $(shell find test/ -name "*.c")
+
+UT_OBJS := \
+	$(patsubst %.c,$(UT_DIR)/%.o,$(UT_SRC)) \
+	$(patsubst $(RELEASE_DIR)/%.o,$(UT_DIR)/%.o,$(RELEASE_OBJS))
+
+DIRS += \
+	$(UT_DIR) \
+	$(sort $(dir $(UT_OBJS)))
+
+ifneq (,$(shell type -fP lcov))
+UT_INFO := $(UT_DIR)/crudebox.info
+UT_COV := $(UT_DIR)/coverage
+
+VERSION_LIST += $$(lcov --version)
+endif
+endif
+
+
+
+#
 # Setting terminal colors
 #
 
@@ -501,6 +527,12 @@ $(DEBUG_BIN): CPPFLAGS		+= -DMEM_NOLEAK
 $(DEBUG_BIN): CFLAGS		+= -Og -g2
 $(DEBUG_BIN): CXXFLAGS		+= -Og -g2
 
+$(UT_BIN): CPPFLAGS 		+= -DUNIT_TEST_ -Isrc/
+$(UT_BIN): CFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
+$(UT_BIN): CXXFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
+$(UT_BIN): LDLIBS			+= $(shell $(PKGCONF) --libs criterion)
+$(UT_BIN): LDFLAGS			+= -lgcov
+
 syntax-check: CFLAGS   += -fsyntax-only
 syntax-check: CXXFLAGS += -fsyntax-only
 syntax-check: $(DEBUG_OBJS)
@@ -524,8 +556,10 @@ src/wl-window.c: $(XDG_HDR)
 
 $(RELEASE_DIR)/%.o: %.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+ifdef CLANG
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
-ifndef CLANG
 	@printf '%s' \
 		'{' \
 			'"directory":"$(CURDIR)",' \
@@ -541,8 +575,10 @@ endif
 
 $(RELEASE_DIR)/%.o: $(BUILD_DIR)/%.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+ifdef CLANG
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
-ifndef CLANG
 	@printf '%s' \
 		'{' \
 			'"directory":"$(CURDIR)",' \
@@ -558,8 +594,10 @@ endif
 
 $(DEBUG_DIR)/%.o: %.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+ifdef CLANG
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
-ifndef CLANG
 	@printf '%s' \
 		'{' \
 			'"directory":"$(CURDIR)",' \
@@ -575,8 +613,10 @@ endif
 
 $(DEBUG_DIR)/%.o: $(BUILD_DIR)/%.c
 	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+ifdef CLANG
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
-ifndef CLANG
 	@printf '%s' \
 		'{' \
 			'"directory":"$(CURDIR)",' \
@@ -610,6 +650,45 @@ $(RELEASE_CMDS): $(RELEASE_OBJS)
 $(DEBUG_CMDS): $(DEBUG_OBJS)
 	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
 		> $@ || (rm -f $@ && false)
+
+$(UT_COV): $(UT_INFO)
+	@printf "$(MAGENTA)Generating [ $@ ]$(RESET)\n"
+	genhtml \
+		--output-directory $@ \
+		--rc geninfo_auto_base=1 \
+		$<
+
+$(UT_INFO): $(UT_REPORT)
+	@printf "$(MAGENTA)Generating [ $@ ]$(RESET)\n"
+	lcov \
+		--test-name $(BIN) \
+		--base-directory $(CURDIR) \
+		--directory $(UT_DIR) \
+		--capture \
+		$(if $(GITHUB_SHA),$(GITHUB_SHA)) \
+		--output-file $@
+
+$(UT_REPORT): $(UT_BIN)
+	$(UT_BIN) \
+		--jobs $(UT_CPUS) \
+		--xml=$@ \
+		--tap
+
+$(UT_BIN): $(UT_OBJS) 
+	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
+	$(Q)gcc -o $@ $^ $(LDLIBS) $(LDFLAGS)
+	@printf "$(GREEN)Built target [ $@ ]$(RESET)\n"
+
+$(UT_DIR)/%.o: %.c
+	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+
+$(UT_DIR)/%.o: $(BUILD_DIR)/%.c
+	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+
+
+$(UT_OBJS): | $(DIRS)
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -697,6 +776,8 @@ $(TARBALL): \
 		$(PKGCONF_DATA) \
 		$(PKGCONF_VERSION) \
 		$(SHELLCHECK_OUTPUT) \
+		$(UT_TARGET) \
+		$(UT_COV) \
 		$(VERSION_FILE)
 	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
 	$(Q)find -H $^ -type f -size +0 \

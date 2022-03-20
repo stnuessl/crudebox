@@ -129,7 +129,7 @@ static void *thread2_run(void *arg)
     return NULL;
 }
 
-int main(int argc, char *argv[])
+__attribute__((used)) static int crudebox(int argc, char *argv[])
 {
     struct widget *widget;
     struct line_edit *edit;
@@ -199,3 +199,12 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 }
+
+#ifndef UNIT_TEST_
+
+int main(int argc, char *argv[])
+{
+    return crudebox(argc, argv);
+}
+
+#endif

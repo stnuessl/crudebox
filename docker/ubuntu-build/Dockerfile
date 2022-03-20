@@ -11,11 +11,12 @@ RUN apt-get update && apt-get --assume-yes install \
     bsdmainutils \
     clang \
     clang-tools \
-    curl \
     cppcheck \
+    libcriterion-dev \
+    curl \
     findutils \
-    universal-ctags \
     gcc \
+    lcov \
     libcairo2-dev \
     libfreetype-dev \
     libwayland-dev \
@@ -24,6 +25,7 @@ RUN apt-get update && apt-get --assume-yes install \
     libxkbcommon-dev \
     make \
     pkg-config \
+    universal-ctags \
     uuid-runtime \
     wayland-protocols \
 && ln -sf $(ls /bin/clang-extdef-* | head -n 1) /bin/clang-extdef-mapping \
