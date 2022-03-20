@@ -668,7 +668,7 @@ $(UT_INFO): $(UT_REPORT)
 		--base-directory $(CURDIR) \
 		--directory $(UT_DIR) \
 		--capture \
-		$(if $(GITHUB_SHA),$(GITHUB_SHA)) \
+		$(if $(GITHUB_SHA),--test-name $(GITHUB_SHA)) \
 		--output-file $@
 
 $(UT_REPORT): $(UT_BIN)
