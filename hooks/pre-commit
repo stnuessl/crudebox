@@ -7,16 +7,20 @@
 #
 # To enable this hook, rename this file to "pre-commit".
 
-FILES=$(git diff --name-only --cached --diff-filter=ACM | grep "\.[ch]$")
-if [ -z "${FILES}" ]; then
+FILES=$(git diff --name-only --cached --diff-filter=ACM -- "*.[ch]")
+if [[ -z "${FILES}" ]]; then
     exit 0
 fi
 
-clang-format --dry-run --Werror --ferror-limit=1 ${FILES} &> /dev/null
-
-if [ $? -ne 0 ]; then
+# shellcheck disable=SC2086
+if ! clang-format \
+        --dry-run \
+        --Werror \
+        --ferror-limit=1 \
+        ${FILES} \
+        &> /dev/null; then
     printf "** ERROR: Staged code is not formatted correctly.\n"
-    exit 1;
+    exit 1
 fi
 
 exit 0

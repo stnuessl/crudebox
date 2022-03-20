@@ -299,7 +299,10 @@ SHELLCHECK_FLAGS := \
 	--norc \
 	--shell $(firstword $(notdir $(SHELL)))
 
-SHELLCHECK_INPUT := $(shell find . -name "*.sh")
+SHELLCHECK_INPUT := \
+	$(shell find . -name "*.sh") \
+	hooks/pre-commit
+
 SHELLCHECK_OUTPUT := $(SHELLCHECK_DIR)/shellcheck.txt
 
 DIRS += $(SHELLCHECK_DIR)
