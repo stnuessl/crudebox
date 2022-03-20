@@ -668,6 +668,7 @@ $(UT_INFO): $(UT_REPORT)
 		--base-directory $(CURDIR) \
 		--directory $(UT_DIR) \
 		--capture \
+		--exclude "/usr/include/*" \
 		$(if $(GITHUB_SHA),--test-name $(GITHUB_SHA)) \
 		--output-file $@
 
