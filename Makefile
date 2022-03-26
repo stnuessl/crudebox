@@ -434,7 +434,6 @@ ifneq (,$(shell type -f $(PKGCONF)))
 ifneq (,$(PKGCONF_LIBS))
 PKGCONF_CHECK	:= pkgconf-check
 PKGCONF_DIR		:= $(BUILD_DIR)/pkgconf
-PKGCONF_VERSION	:= $(PKGCONF_DIR)/version.txt
 PKGCONF_DATA	:= $(PKGCONF_DIR)/libs.json
 
 DIRS += $(PKGCONF_DIR)
@@ -484,7 +483,7 @@ ifneq (,$(shell type -fP lcov))
 UT_INFO := $(UT_DIR)/crudebox.info
 UT_COV := $(UT_DIR)/coverage
 
-VERSION_LIST += $$(lcov --version)
+VERSION_LIST += "$$(lcov --version)"
 endif
 endif
 
@@ -722,12 +721,8 @@ $(OS_RELEASE): /etc/os-release | $(DIRS)
 $(VERSION_FILE): | $(DIRS)
 	@printf "%s\n--\n" $(VERSION_LIST) > $@ || (rm -f $@ && false)
 
-$(PKGCONF_CHECK): $(PKGCONF_VERSION) $(PKGCONF_DATA)
+$(PKGCONF_CHECK): $(PKGCONF_DATA)
 	@printf "$(GREEN)Performed [ $@ ]$(RESET)\n"
-
-$(PKGCONF_VERSION): | $(DIRS)
-	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
-	$(Q)$(PKGCONF) --version 2>&1 > $@ || (rm -f $@ && false)
 
 $(PKGCONF_DATA): | $(DIRS)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
