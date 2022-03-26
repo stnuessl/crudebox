@@ -5,7 +5,7 @@
 # with all required dependencies to build the project.
 #
 
-FROM alpine:3.14
+FROM alpine:latest
 RUN apk add --no-cache \
     binutils \
     cairo-dev \
