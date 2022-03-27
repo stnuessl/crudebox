@@ -17,7 +17,7 @@
 
 #include <criterion/criterion.h>
 
-#include <util/io-util.h>
+#include "util/io-util.h"
 
 Test(io_util_read, invalid_fd)
 {

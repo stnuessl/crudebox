@@ -421,12 +421,6 @@ CXXFLAGS := \
 #	-fno-omit-frame-pointer \
 
 
-TAR_FLAGS = \
-	--create \
-	--file $@ \
-	--gzip
-
-
 #
 # Enable addtional targets if there are pkgconf libraries defined
 #
@@ -465,7 +459,7 @@ CPPCHECK_FLAGS	+= $(EXTRA_CPPCHECK_FLAGS)
 # Define unit test targets
 #
 ifeq (,$(shell $(PKGCONF) --print-errors --exists criterion 2>&1))
-UT_DIR := $(BUILD_DIR)/test
+UT_DIR := $(BUILD_DIR)/unit-test
 UT_REPORT := $(UT_DIR)/report.xml
 UT_BIN := $(UT_DIR)/crudebox
 UT_CPUS := $(shell nproc)
@@ -478,6 +472,10 @@ UT_OBJS := \
 DIRS += \
 	$(UT_DIR) \
 	$(sort $(dir $(UT_OBJS)))
+
+ifdef CLANG
+VERSION_LIST += "$$(gcc --version)"
+endif
 
 ifneq (,$(shell type -fP lcov))
 UT_INFO := $(UT_DIR)/crudebox.info
@@ -656,20 +654,25 @@ $(DEBUG_CMDS): $(DEBUG_OBJS)
 $(UT_COV): $(UT_INFO)
 	@printf "$(MAGENTA)Generating [ $@ ]$(RESET)\n"
 	genhtml \
+		--branch-coverage \
+		--function-coverage \
 		--output-directory $@ \
 		--rc geninfo_auto_base=1 \
+		--show-details \
+		--title "$(BIN)-$(VERSION_CORE)$(if $(GITHUB_SHA), ($(GITHUB_SHA)))" \
 		$<
 
 $(UT_INFO): $(UT_REPORT)
 	@printf "$(MAGENTA)Generating [ $@ ]$(RESET)\n"
 	lcov \
-		--test-name $(BIN) \
 		--base-directory $(CURDIR) \
-		--directory $(UT_DIR) \
 		--capture \
+		--directory $(UT_DIR) \
 		--exclude "/usr/include/*" \
-		$(if $(GITHUB_SHA),--test-name $(GITHUB_SHA)) \
-		--output-file $@
+		--exclude "*/build/gen/*" \
+		--output-file $@ \
+		--rc lcov_branch_coverage=1 \
+		--rc lcov_function_coverage=1
 
 $(UT_REPORT): $(UT_BIN)
 	$(UT_BIN) \
@@ -738,7 +741,7 @@ $(ANALYZER_OUTPUT): | $(ANALYZER_FILES)
 
 $(ANALYZER_DIR)/%.txt: %.c $(ANALYZER_DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
-	$(Q)clang --analyze  $(ANALYZER_FLAGS) $< 2>&1 | tee $@
+	$(Q)clang --analyze $(ANALYZER_FLAGS) $< 2>&1 | tee $@
 
 $(ANALYZER_DIR)/%.txt: $(BUILD_DIR)/%.c $(ANALYZER_DEFMAP)
 	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
@@ -763,6 +766,9 @@ $(SHELLCHECK): $(SHELLCHECK_OUTPUT)
 $(SHELLCHECK_OUTPUT): $(SHELLCHECK_INPUT) | $(DIRS)
 	$(Q)shellcheck $(SHELLCHECK_FLAGS) $^ | tee $@ || (rm -f $@ && false)
 
+# Use sed to strip the directories in which the tarball will be created off of
+# all input paths. This is required so the paths don't appear when extracting
+# the tarball.
 $(TARBALL): \
 		$(RELEASE_BIN) \
 		$(RELEASE_CMDS) \
@@ -775,13 +781,13 @@ $(TARBALL): \
 		$(PKGCONF_DATA) \
 		$(PKGCONF_VERSION) \
 		$(SHELLCHECK_OUTPUT) \
-		$(UT_TARGET) \
+		$(UT_REPORT) \
 		$(UT_COV) \
 		$(VERSION_FILE)
 	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
 	$(Q)find -H $^ -type f -size +0 \
-		| sed -e 's/$(@D)\///g' \
-		| $(TAR) $(TAR_FLAGS) --directory $(@D) --files-from -
+		| sed -e 's/^\(\.\/\)\?$(@D)\///g' \
+		| $(TAR) --create --file $@ --gzip --directory $(@D) --files-from -
 
 artifactory-upload: $(TARBALL)
 	@printf "$(MAGENTA)Uploading [ $^ ]$(RESET)\n"
