@@ -752,14 +752,14 @@ $(ANALYZER_DEFMAP): $(DEBUG_CMDS) $(SRC)
 
 $(CPPCHECK): $(CPPCHECK_OUTPUT)
 
-$(CPPCHECK_RESULTS): $(DEBUG_CMDS) | $(DIRS)
-	@printf "$(YELLOW)Analyzing project [ $< ]$(RESET)\n"
-	$(Q)cppcheck $(CPPCHECK_FLAGS) --project=$< --output-file=$@
-
 $(CPPCHECK_OUTPUT): $(CPPCHECK_RESULTS) 
 	@printf "$(YELLOW)Generating report [ $@ ]$(RESET)\n"
 	@rm -rf $@
 	$(Q)cppcheck-htmlreport --file=$< --title=$(BIN) --report-dir=$@
+
+$(CPPCHECK_RESULTS): $(DEBUG_CMDS) | $(DIRS)
+	@printf "$(YELLOW)Analyzing project [ $< ]$(RESET)\n"
+	$(Q)cppcheck $(CPPCHECK_FLAGS) --project=$< --output-file=$@
 
 $(SHELLCHECK): $(SHELLCHECK_OUTPUT)
 
