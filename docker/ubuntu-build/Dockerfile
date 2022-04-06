@@ -5,7 +5,7 @@
 # with all required dependencies to build the project.
 #
 
-FROM ubuntu:rolling
+FROM ubuntu:21.10
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get --assume-yes install \
     bsdmainutils \
