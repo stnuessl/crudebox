@@ -20,11 +20,11 @@
 
 int io_util_read(int fd, void *buf, size_t size);
 
-int io_util_read_all(int fd, void **buf, size_t *size);
+int io_util_read_all(int fd, char **buf, size_t *size);
 
 int io_util_read_all_str(int fd, char **buf, size_t *size);
 
-int io_util_path_read_all(const char *path, void **buf, size_t *size);
+int io_util_path_read_all(const char *path, char **buf, size_t *size);
 
 int io_util_path_read_all_str(const char *path, char **buf, size_t *size);
 
