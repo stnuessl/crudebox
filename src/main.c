@@ -200,7 +200,7 @@ __attribute__((used)) static int crudebox(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-#ifndef UNIT_TEST_
+#ifndef UNIT_TESTS_ENABLED
 
 int main(int argc, char *argv[])
 {
