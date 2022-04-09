@@ -31,17 +31,21 @@
 #
 
 # Get all (A)dded or (M)odified .c or .h files in the staging area
-FILES=$(git diff --name-only --cached --diff-filter=AM -- "*.[ch]$")
+mapfile -t FILES < <(\
+    git diff \
+        --name-only \
+        --cached \
+        --diff-filter=AM \
+        -- "*.[ch]$" \
+) || true
 
-if [[ -n "${FILES}" ]]; then
+if [[ ${#FILES[@]} -ne 0 ]]; then
 
     # Format all found files
-    # shellcheck disable=SC2086
-    clang-format -i ${FILES}
+    clang-format -i "${FILES[@]}"
 
     # Ensure that the changes to these files are also added to the staging area
-    # shellcheck disable=SC2086
-    git add ${FILES}
+    git add "${FILES[@]}"
 fi
 
 exit 0
