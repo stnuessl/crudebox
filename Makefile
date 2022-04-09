@@ -527,7 +527,7 @@ $(DEBUG_BIN): CPPFLAGS		+= -DMEM_NOLEAK
 $(DEBUG_BIN): CFLAGS		+= -Og -g2
 $(DEBUG_BIN): CXXFLAGS		+= -Og -g2
 
-$(UT_BIN): CPPFLAGS 		+= -DUNIT_TEST_ -Isrc/
+$(UT_BIN): CPPFLAGS 		+= -DUNIT_TESTS_ENABLED -DMEM_NO_LEAK -Isrc/
 $(UT_BIN): CFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
 $(UT_BIN): CXXFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
 $(UT_BIN): LDLIBS			+= $(shell $(PKGCONF) --libs criterion)
