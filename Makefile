@@ -459,6 +459,7 @@ CPPCHECK_FLAGS	+= $(EXTRA_CPPCHECK_FLAGS)
 # Define unit test targets
 #
 ifeq (,$(shell $(PKGCONF) --print-errors --exists criterion 2>&1))
+UT_TARGET := unit-tests
 UT_DIR := $(BUILD_DIR)/unit-test
 UT_REPORT := $(UT_DIR)/report.xml
 UT_BIN := $(UT_DIR)/crudebox
@@ -651,6 +652,8 @@ $(DEBUG_CMDS): $(DEBUG_OBJS)
 	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
 		> $@ || (rm -f $@ && false)
 
+$(UT_TARGET): $(UT_COV)
+
 $(UT_COV): $(UT_INFO)
 	@printf "$(MAGENTA)Generating [ $@ ]$(RESET)\n"
 	genhtml \
@@ -814,6 +817,7 @@ endif
 	$(ENVFILE) \
 	$(PKGCONF_CHECK) \
 	$(SHELLCHECK) \
+	$(UT_TARGET) \
 	all \
 	artifactory-upload \
 	clang-analysis \
