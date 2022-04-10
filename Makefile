@@ -40,28 +40,35 @@ Q :=
 #
 BIN := crudebox
 
+
+#
+# Set the source directory
+#
+srcdir := src
+
+
 #
 # Utility variables to deal with spaces
 #
-EMPTY :=
-SPACE := $(EMPTY) $(EMPTY)
+empty :=
+space := $(empty) $(empty)
 
 
 #
 # Version information
 #
-VERSION_MAJOR	:= 0
-VERSION_MINOR	:= 1
-VERSION_PATCH	:= 0
-VERSION_CORE	:= $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+version_major	:= 0
+version_minor	:= 1
+version_patch	:= 0
+version_core	:= $(version_major).$(version_minor).$(version_patch)
 
 #
 # Paths for the build-, objects- and dependency-directories
 #
 BUILD_DIR		:= build
-RELEASE_DIR		:= $(BUILD_DIR)/release
-DEBUG_DIR		:= $(BUILD_DIR)/debug
-GEN_DIR			:= $(BUILD_DIR)/gen
+release_dir		:= $(BUILD_DIR)/release
+debug_dir		:= $(BUILD_DIR)/debug
+gen_dir			:= $(BUILD_DIR)/gen
 
 
 #
@@ -79,61 +86,60 @@ endif
 # Use the current unix time as the build timestamp.
 #
 UNIX_TIME := $(shell date --utc +"%s")
-BUILD_UUID := $(shell uuidgen --random)
 
 ifdef ARTIFACTORY_API_KEY
 
-OS_NAME := $(shell sed -E -n "s/^ID=([a-z0-9\._-]+)\s*$$/\1/p" /etc/os-release)
-DATE	:= $(shell date --utc --date="@$(UNIX_TIME)" +"%Y-%m-%d")
-TIME	:= $(shell date --utc --date="@$(UNIX_TIME)" +"%H:%M:%S")
+os_name := $(shell sed -E -n "s/^ID=([a-z0-9\._-]+)\s*$$/\1/p" /etc/os-release)
+date	:= $(shell date --utc --date="@$(UNIX_TIME)" +"%Y-%m-%d")
+time	:= $(shell date --utc --date="@$(UNIX_TIME)" +"%H:%M:%S")
 
-ARTIFACTORY_UPLOAD_URL := \
+artifactory_upload_url := \
 	https://nuessle.jfrog.io/artifactory$\
 	/crudebox-local$\
 	;action=$(GITHUB_RUN_ID)$\
 	;branch=$(notdir $(GITHUB_REF))$\
-	;uuid=$(BUILD_UUID)$\
+	;uuid=$(shell uuidgen --random)$\
 	;commit=$(GITHUB_SHA)$\
 	;compiler=$(shell $(CC) --version | head -n 1 | tr -s " " "+")$\
-	;date=$(DATE)$\
-	;time=$(TIME)$\
+	;date=$(date)$\
+	;time=$(time)$\
 	;timezone=utc$\
 	;job=$(GITHUB_JOB)$\
-	;os=$(OS_NAME)$\
-	;version=$(VERSION_CORE)$\
+	;os=$(os_name)$\
+	;version=$(version_core)$\
 	;xdg_session_type=$(XDG_SESSION_TYPE)$\
-	/$(OS_NAME)$\
+	/$(os_name)$\
 	/$(XDG_SESSION_TYPE)$\
 	/$(notdir $(CC))$\
-	/$(DATE)$\
-	/$(TIME)
+	/$(date)$\
+	/$(time)
 
 endif
 
 #
 # Specifiy the additional wayland protocols
 #
-XDG_SHELL := /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
-XDG_GEN := $(GEN_DIR)/xdg-shell
-XDG_SRC := $(XDG_GEN)/xdg-shell.c
-XDG_HDR := $(XDG_GEN)/xdg-shell-client.h
+xdg_shell := /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
+xdg_dir := $(gen_dir)/xdg-shell
+xdg_src := $(xdg_dir)/xdg-shell.c
+xdg_hdr := $(xdg_dir)/xdg-shell-client.h
 
 #
 # Specify all source files. The paths should be relative to this file.
 #
-REG_SRC := $(shell find src/ -iname "*.c")
-GEN_SRC := $(XDG_SRC)
-SRC := $(REG_SRC) $(GEN_SRC)
+reg_src := $(shell find $(srcdir) -iname "*.c")
+gen_src := $(xdg_src)
+src := $(reg_src) $(gen_src)
 
 # 
 # Optional: This variable is used by the 'format' and 'tags' targets 
 # which are not necessary to build the target.
 #
-REG_HDR := $(shell find src/ -iname "*.h")
-GEN_HDR := $(XDG_HDR)
-HDR := $(REG_HDR) $(GEN_HDR)
+reg_hdr := $(shell find $(srcdir) -iname "*.h")
+gen_hdr := $(xdg_hdr)
+hdr := $(reg_hdr) $(gen_hdr)
 
-ifndef SRC
+ifndef src
 $(error No source files specified)
 endif
 
@@ -141,15 +147,15 @@ endif
 # Define variable which can be used to check if the clang compiler
 # family is used for this invocation of make.
 #
-CLANG := $(findstring clang,$(CC))
+clang_used := $(findstring clang,$(CC))
 
 #
 # Uncomment if 'VPATH' is needed. 'VPATH' is a list of directories in which
 # make searches for source files.
 #
-# VPATH		:= $(subst $(SPACE),:,$(sort $(dir $(SRC))))
+# VPATH		:= $(subst $(space),:,$(sort $(dir $(src))))
 
-RELPATHS	:= $(filter ../%, $(SRC))
+RELPATHS	:= $(filter ../%, $(src))
 ifdef RELPATHS
 
 NAMES		:= $(notdir $(RELPATHS))
@@ -160,8 +166,8 @@ UNIQUE		:= $(sort $(NAMES))
 #
 ifneq ($(words $(NAMES)),$(words $(UNIQUE)))
 DUPS		:= $(shell printf "$(NAMES)" | tr -s " " "\n" | sort --unique)
-DIRS		:= $(dir $(filter %$(DUPS), $(SRC)))
-$(error Detected name duplicates in relative paths [ $(DUPS) ] - [ $(DIRS) ])
+dirs		:= $(dir $(filter %$(DUPS), $(src)))
+$(error Detected name duplicates in relative paths [ $(DUPS) ] - [ $(dirs) ])
 endif
 
 #
@@ -170,58 +176,58 @@ endif
 # even worse 'build/src/../../relative' which would be a path outside of
 # the specified build directory
 #
-SRC			:= $(filter-out ../%, $(SRC)) $(notdir $(RELPATHS))
-VPATH		:= $(subst $(SPACE),:, $(dir $(RELPATHS)))
+src			:= $(filter-out ../%, $(src)) $(notdir $(RELPATHS))
+VPATH		:= $(subst $(space),:, $(dir $(RELPATHS)))
 endif
 
 #
-# Define all object and dependency files from $(SRC) and get
+# Define all object and dependency files from $(src) and get
 # a list of all inhabited directories. Special care is taken to prevent 
 # file paths like "build/./src/main.o"
 #
 
-GEN_C_SRC := $(filter %.c,$(GEN_SRC))
-REG_C_SRC := $(filter %.c,$(REG_SRC))
-GEN_CXX_SRC := $(filter %.cpp,$(GEN_SRC))
-REG_CXX_SRC := $(filter %.cpp,$(REG_SRC))
+gen_src_c := $(filter %.c,$(gen_src))
+reg_src_c := $(filter %.c,$(reg_src))
+gen_src_cxx := $(filter %.cpp,$(gen_src))
+reg_src_cxx := $(filter %.cpp,$(reg_src))
 
-RELEASE_OBJS := \
-	$(patsubst $(BUILD_DIR)/%.c,$(RELEASE_DIR)/%.o,$(GEN_C_SRC)) \
-	$(patsubst $(BUILD_DIR)/%.cpp,$(RELEASE_DIR)/%.o,$(GEN_CXX_SRC)) \
-	$(patsubst %.c,$(RELEASE_DIR)/%.o,$(REG_C_SRC)) \
-	$(patsubst %.cpp,$(RELEASE_DIR)/%.o,$(REG_CXX_SRC))
+release_objs := \
+	$(patsubst $(BUILD_DIR)/%.c,$(release_dir)/%.o,$(gen_src_c)) \
+	$(patsubst $(BUILD_DIR)/%.cpp,$(release_dir)/%.o,$(gen_src_cxx)) \
+	$(patsubst %.c,$(release_dir)/%.o,$(reg_src_c)) \
+	$(patsubst %.cpp,$(release_dir)/%.o,$(reg_src_cxx))
 
-DEBUG_OBJS := \
-	$(patsubst $(RELEASE_DIR)/%.o,$(DEBUG_DIR)/%.o,$(RELEASE_OBJS))
+debug_objs := \
+	$(patsubst $(release_dir)/%.o,$(debug_dir)/%.o,$(release_objs))
 
 #
 # Paths to default targets.
 #
-RELEASE_BIN		:= $(RELEASE_DIR)/$(BIN)
-DEBUG_BIN		:= $(DEBUG_DIR)/$(BIN)
-RELEASE_CMDS	:= $(RELEASE_DIR)/compile_commands.json
-DEBUG_CMDS		:= $(DEBUG_DIR)/compile_commands.json
-ENVFILE			:= $(BUILD_DIR)/env.txt
-OS_RELEASE		:= $(BUILD_DIR)/os-release.txt
-TARBALL			:= $(BUILD_DIR)/$(BIN)-$(VERSION_CORE).tar.gz
+release_bin		:= $(release_dir)/$(BIN)
+debug_bin		:= $(debug_dir)/$(BIN)
+release_cmds	:= $(release_dir)/compile_commands.json
+debug_cmds		:= $(debug_dir)/compile_commands.json
+envfile			:= $(BUILD_DIR)/env.txt
+os_release		:= $(BUILD_DIR)/os-release.txt
+tarball			:= $(BUILD_DIR)/$(BIN)-$(version_core).tar.gz
 
-DIRS := \
+dirs := \
 	$(BUILD_DIR) \
-	$(DEBUG_DIR) \
-	$(RELEASE_DIR) \
-	$(GEN_DIR) \
-	$(sort $(dir $(DEBUG_OBJS))) \
-	$(sort $(dir $(RELEASE_OBJS))) \
-	$(sort $(dir $(GEN_SRC) $(GEN_HDR))) \
+	$(debug_dir) \
+	$(release_dir) \
+	$(gen_dir) \
+	$(sort $(dir $(debug_objs))) \
+	$(sort $(dir $(release_objs))) \
+	$(sort $(dir $(gen_src) $(gen_hdr))) \
 
 
 #
 # Define dependency files
 #
-DEPS := $(patsubst %.o,%.d,$(DEBUG_OBJS) $(RELEASE_OBJS))
+deps := $(patsubst %.o,%.d,$(debug_objs) $(release_objs))
 
-VERSION_FILE := $(BUILD_DIR)/versions.txt
-VERSION_LIST := \
+version_file := $(BUILD_DIR)/versions.txt
+version_list := \
 	"$$(make --version)" \
 	"$$($(CC) --version)" \
 	"$$(curl --version)" \
@@ -234,26 +240,26 @@ VERSION_LIST := \
 #
 ifneq (,$(shell type -fP clang-extdef-mapping))
 ANALYZER := clang --analyze
-ANALYZER_DIR := $(BUILD_DIR)/clang-analyzer
-ANALYZER_FILES := \
-	$(patsubst $(RELEASE_DIR)/%.o,$(ANALYZER_DIR)/%.txt,$(RELEASE_OBJS))
+analyzer_dir := $(BUILD_DIR)/clang-analyzer
+analyzer_files := \
+	$(patsubst $(release_dir)/%.o,$(analyzer_dir)/%.txt,$(release_objs))
 
-ANALYZER_FLAGS = \
+analyzer_flags = \
 	--analyzer-output html \
 	--output $(basename $@) \
-	-Xclang -analyzer-config -Xclang ctu-dir=$(ANALYZER_DIR) \
+	-Xclang -analyzer-config -Xclang ctu-dir=$(analyzer_dir) \
 	-Xclang -analyzer-config -Xclang enable-naive-ctu-analysis=true \
 	-Xclang -analyzer-config -Xclang display-ctu-progress=true \
 	$(DEFS) \
 	$(INC) \
 	$(CFLAGS)
 
-ANALYZER_DEFMAP := $(ANALYZER_DIR)/externalDefMap.txt
-ANALYZER_OUTPUT := $(BUILD_DIR)/clang-analysis
+analyzer_defmap := $(analyzer_dir)/externalDefMap.txt
+analyzer_output := $(BUILD_DIR)/clang-analysis
 
-DIRS += $(ANALYZER_DIR) $(sort $(dir $(ANALYZER_FILES)))
-ifndef CLANG
-VERSION_LIST += "$$($(ANALYZER) --version)"
+dirs += $(analyzer_dir) $(sort $(dir $(analyzer_files)))
+ifndef clang_used
+version_list += "$$($(ANALYZER) --version)"
 endif
 endif
 
@@ -261,10 +267,10 @@ endif
 # Variables for cppcheck
 #
 ifneq (,$(shell type -fP cppcheck))
-CPPCHECK := cppcheck
-CPPCHECK_DIR := $(BUILD_DIR)/cppcheck-analysis
-CPPCHECK_FLAGS := \
-	--cppcheck-build-dir=$(CPPCHECK_DIR) \
+cppcheck := cppcheck
+cppcheck_dir := $(BUILD_DIR)/cppcheck-analysis
+cppcheck_flags := \
+	--cppcheck-build-dir=$(cppcheck_dir) \
 	--enable=all \
 	--inconclusive \
 	--inline-suppr \
@@ -278,20 +284,20 @@ CPPCHECK_FLAGS := \
 	--verbose \
 	--xml
 
-CPPCHECK_OUTPUT := $(BUILD_DIR)/cppcheck
-CPPCHECK_RESULTS := $(CPPCHECK_DIR)/cppcheck.xml
+cppcheck_output := $(BUILD_DIR)/cppcheck
+cppcheck_results := $(cppcheck_dir)/cppcheck.xml
 
-DIRS += $(CPPCHECK_DIR)
-VERSION_LIST += "$$(cppcheck --version)"
+dirs += $(cppcheck_dir)
+version_list += "$$(cppcheck --version)"
 endif
 
 #
 # Variables for shellcheck
 #
 ifneq (,$(shell type -fP shellcheck))
-SHELLCHECK_DIR := $(BUILD_DIR)/shellcheck
-SHELLCHECK := shellcheck
-SHELLCHECK_FLAGS := \
+shellcheck_dir := $(BUILD_DIR)/shellcheck
+shellcheck := shellcheck
+shellcheck_flags := \
 	--color=auto \
 	--external-sources \
 	--format gcc \
@@ -299,14 +305,14 @@ SHELLCHECK_FLAGS := \
 	--norc \
 	--shell $(firstword $(notdir $(SHELL)))
 
-SHELLCHECK_INPUT := \
+shellcheck_input := \
 	$(shell find . -name "*.sh") \
 	hooks/pre-commit
 
-SHELLCHECK_OUTPUT := $(SHELLCHECK_DIR)/shellcheck.txt
+shellcheck_output := $(shellcheck_dir)/shellcheck.txt
 
-DIRS += $(SHELLCHECK_DIR)
-VERSION_LIST += "$$(shellcheck --version)"
+dirs += $(shellcheck_dir)
+version_list += "$$(shellcheck --version)"
 endif
 
 #
@@ -314,9 +320,9 @@ endif
 #
 DEFS := \
 	-D_GNU_SOURCE \
-	-DCRUDEBOX_VERSION_MAJOR=\"$(VERSION_MAJOR)\" \
-	-DCRUDEBOX_VERSION_MINOR=\"$(VERSION_MINOR)\" \
-	-DCRUDEBOX_VERSION_PATCH=\"$(VERSION_PATCH)\" \
+	-DCRUDEBOX_VERSION_MAJOR=\"$(version_major)\" \
+	-DCRUDEBOX_VERSION_MINOR=\"$(version_minor)\" \
+	-DCRUDEBOX_VERSION_PATCH=\"$(version_patch)\" \
 	-DCOPYRIGHT_YEAR=\"$(shell date --date "@$(UNIX_TIME)" +"%Y")\"
 
 
@@ -335,13 +341,13 @@ endif
 # Add additional include paths
 #
 INC := \
-	-I$(XDG_GEN)
+	-I$(xdg_dir)
 
 
 #
 # Add used libraries which are configurable with pkg-config
 #
-PKGCONF_LIBS := \
+pkgconf_libs := \
 	cairo \
 	freetype2 \
 	wayland-client \
@@ -378,7 +384,7 @@ LDFLAGS := \
 
 #
 # Set the preprocessor flags and also generate a dependency 
-# file "$(DEPS)" for each processed translation unit.
+# file "$(deps)" for each processed translation unit.
 #
 
 CPPFLAGS = \
@@ -425,20 +431,20 @@ CXXFLAGS := \
 # Enable addtional targets if there are pkgconf libraries defined
 #
 ifneq (,$(shell type -f $(PKGCONF)))
-ifneq (,$(PKGCONF_LIBS))
-PKGCONF_CHECK	:= pkgconf-check
-PKGCONF_DIR		:= $(BUILD_DIR)/pkgconf
-PKGCONF_DATA	:= $(PKGCONF_DIR)/libs.json
+ifneq (,$(pkgconf_libs))
+pkgconf_check	:= pkgconf-check
+pkgconf_dir		:= $(BUILD_DIR)/pkgconf
+pkgconf_data	:= $(pkgconf_dir)/libs.json
 
-DIRS += $(PKGCONF_DIR)
-VERSION_LIST += "$(PKGCONF) $$($(PKGCONF) --version)"
+dirs += $(pkgconf_dir)
+version_list += "$(PKGCONF) $$($(PKGCONF) --version)"
 
 #
 # Add build flags for all required libraries
 #
-CFLAGS		+= $(shell $(PKGCONF) --cflags $(PKGCONF_LIBS))
-CXXFLAGS	+= $(shell $(PKGCONF) --cflags $(PKGCONF_LIBS))
-LDLIBS		+= $(shell $(PKGCONF) --libs $(PKGCONF_LIBS))
+CFLAGS		+= $(shell $(PKGCONF) --cflags $(pkgconf_libs))
+CXXFLAGS	+= $(shell $(PKGCONF) --cflags $(pkgconf_libs))
+LDLIBS		+= $(shell $(PKGCONF) --libs $(pkgconf_libs))
 endif
 endif
 
@@ -451,38 +457,35 @@ CFLAGS		+= $(EXTRA_CFLAGS)
 CXXFLAGS	+= $(EXTRA_CXXFLAGS)
 LDFLAGS		+= $(EXTRA_LDFLAGS)
 
-ANALYZER_FLAGS	+= $(EXTRA_ANALYZER_FLAGS)
-CPPCHECK_FLAGS	+= $(EXTRA_CPPCHECK_FLAGS)
-
 
 #
 # Define unit test targets
 #
 ifeq (,$(shell $(PKGCONF) --print-errors --exists criterion 2>&1))
-UT_TARGET := unit-tests
-UT_DIR := $(BUILD_DIR)/unit-test
-UT_REPORT := $(UT_DIR)/report.xml
-UT_BIN := $(UT_DIR)/crudebox
-UT_CPUS := $(shell nproc)
-UT_SRC := $(shell find test/ -name "*.c")
+ut_target := unit-tests
+ut_dir := $(BUILD_DIR)/unit-test
+ut_report := $(ut_dir)/report.xml
+ut_bin := $(ut_dir)/crudebox
+ut_cpus := $(shell nproc)
+ut_src := $(shell find test/ -name "*.c")
 
-UT_OBJS := \
-	$(patsubst %.c,$(UT_DIR)/%.o,$(UT_SRC)) \
-	$(patsubst $(RELEASE_DIR)/%.o,$(UT_DIR)/%.o,$(RELEASE_OBJS))
+ut_objs := \
+	$(patsubst %.c,$(ut_dir)/%.o,$(ut_src)) \
+	$(patsubst $(release_dir)/%.o,$(ut_dir)/%.o,$(release_objs))
 
-DIRS += \
-	$(UT_DIR) \
-	$(sort $(dir $(UT_OBJS)))
+dirs += \
+	$(ut_dir) \
+	$(sort $(dir $(ut_objs)))
 
-ifdef CLANG
-VERSION_LIST += "$$(gcc --version)"
+ifdef clang_used
+version_list += "$$(gcc --version)"
 endif
 
 ifneq (,$(shell type -fP lcov))
-UT_INFO := $(UT_DIR)/crudebox.info
-UT_COV := $(UT_DIR)/coverage
+ut_info := $(ut_dir)/crudebox.info
+ut_cov := $(ut_dir)/coverage
 
-VERSION_LIST += "$$(lcov --version)"
+version_list += "$$(lcov --version)"
 endif
 endif
 
@@ -494,20 +497,20 @@ endif
 
 ifneq ($(MAKEFILE_COLOR), 0)
 
-RED			:= \e[1;31m
-GREEN		:= \e[1;32m
-YELLOW		:= \e[1;33m
-BLUE		:= \e[1;34m
-MAGENTA		:= \e[1;35m
-CYAN		:= \e[1;36m
-RESET		:= \e[0m
+red			:= \e[1;31m
+green		:= \e[1;32m
+yellow		:= \e[1;33m
+blue		:= \e[1;34m
+magenta		:= \e[1;35m
+cyan		:= \e[1;36m
+reset		:= \e[0m
 
 endif
 
 
-all: release $(RELEASE_CMDS) tags 
-release: $(RELEASE_BIN)
-debug: $(DEBUG_BIN)
+all: release $(release_cmds) tags 
+release: $(release_bin)
+debug: $(debug_bin)
 
 #
 # Note that if "-flto" is specified you may want to pass the optimization
@@ -519,45 +522,45 @@ analysis-build: CFLAGS		+= -fno-omit-frame-pointer
 analysis-build: CXXFLAGS	+= -fno-omit-frame-pointer
 analysis-build: release
 
-$(RELEASE_BIN): CPPFLAGS	+= -DNDEBUG
-$(RELEASE_BIN): CFLAGS		+= -O2 -flto -fdata-sections -ffunction-sections
-$(RELEASE_BIN): CXXFLAGS	+= -O2 -flto -fdata-sections -ffunction-sections
-$(RELEASE_BIN): LDFLAGS		+= -O2 -flto -Wl,--gc-sections
+$(release_bin): CPPFLAGS	+= -DNDEBUG
+$(release_bin): CFLAGS		+= -O2 -flto -fdata-sections -ffunction-sections
+$(release_bin): CXXFLAGS	+= -O2 -flto -fdata-sections -ffunction-sections
+$(release_bin): LDFLAGS		+= -O2 -flto -Wl,--gc-sections
 
-$(DEBUG_BIN): CPPFLAGS		+= -DMEM_NOLEAK
-$(DEBUG_BIN): CFLAGS		+= -Og -g2
-$(DEBUG_BIN): CXXFLAGS		+= -Og -g2
+$(debug_bin): CPPFLAGS		+= -DMEM_NOLEAK
+$(debug_bin): CFLAGS		+= -Og -g2
+$(debug_bin): CXXFLAGS		+= -Og -g2
 
-$(UT_BIN): CPPFLAGS 		+= -DUNIT_TESTS_ENABLED -DMEM_NO_LEAK -Isrc/
-$(UT_BIN): CFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
-$(UT_BIN): CXXFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
-$(UT_BIN): LDLIBS			+= $(shell $(PKGCONF) --libs criterion)
-$(UT_BIN): LDFLAGS			+= -lgcov
+$(ut_bin): CPPFLAGS 		+= -DUNIT_TESTS_ENABLED -DMEM_NO_LEAK -I$(srcdir)
+$(ut_bin): CFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
+$(ut_bin): CXXFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
+$(ut_bin): LDLIBS			+= $(shell $(PKGCONF) --libs criterion)
+$(ut_bin): LDFLAGS			+= -lgcov
 
 syntax-check: CFLAGS   += -fsyntax-only
 syntax-check: CXXFLAGS += -fsyntax-only
-syntax-check: $(DEBUG_OBJS)
+syntax-check: $(debug_objs)
 
-$(RELEASE_BIN): $(RELEASE_OBJS)
-	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
+$(release_bin): $(release_objs)
+	@printf "$(yellow)Linking [ $@ ]$(reset)\n"
 	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS) 
 	$(Q)strip --strip-all $@
-	@printf "$(GREEN)Built target [ $@ ]$(RESET)\n"
+	@printf "$(green)Built target [ $@ ]$(reset)\n"
 	@sha256sum --tag $@
 
-$(DEBUG_BIN): $(DEBUG_OBJS)
-	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
+$(debug_bin): $(debug_objs)
+	@printf "$(yellow)Linking [ $@ ]$(reset)\n"
 	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
-	@printf "$(GREEN)Built target [ $@ ]$(RESET)\n"
+	@printf "$(green)Built target [ $@ ]$(reset)\n"
 	@sha256sum --tag $@
 
--include $(DEPS)
+-include $(deps)
 
-src/wl-window.c: $(XDG_HDR)
+src/wl-window.c: $(xdg_hdr)
 
-$(RELEASE_DIR)/%.o: %.c
-	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
-ifdef CLANG
+$(release_dir)/%.o: %.c
+	@printf "$(blue)Building [ $@ ]$(reset)\n"
+ifdef clang_used
 	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
@@ -571,12 +574,12 @@ else
 				'"$<"' \
 			']' \
 		'},' \
-	> $(RELEASE_DIR)/$*.json
+	> $(release_dir)/$*.json
 endif
 
-$(RELEASE_DIR)/%.o: $(BUILD_DIR)/%.c
-	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
-ifdef CLANG
+$(release_dir)/%.o: $(BUILD_DIR)/%.c
+	@printf "$(blue)Building [ $@ ]$(reset)\n"
+ifdef clang_used
 	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
@@ -590,12 +593,12 @@ else
 				'"$<"' \
 			']' \
 		'},' \
-	> $(RELEASE_DIR)/$*.json
+	> $(release_dir)/$*.json
 endif
 
-$(DEBUG_DIR)/%.o: %.c
-	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
-ifdef CLANG
+$(debug_dir)/%.o: %.c
+	@printf "$(blue)Building [ $@ ]$(reset)\n"
+ifdef clang_used
 	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
@@ -609,12 +612,12 @@ else
 				'"$<"' \
 			']' \
 		'},' \
-	> $(DEBUG_DIR)/$*.json
+	> $(debug_dir)/$*.json
 endif
 
-$(DEBUG_DIR)/%.o: $(BUILD_DIR)/%.c
-	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
-ifdef CLANG
+$(debug_dir)/%.o: $(BUILD_DIR)/%.c
+	@printf "$(blue)Building [ $@ ]$(reset)\n"
+ifdef clang_used
 	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
@@ -628,76 +631,76 @@ else
 				'"$<"' \
 			']' \
 		'},' \
-	> $(DEBUG_DIR)/$*.json
+	> $(debug_dir)/$*.json
 endif
 
-$(XDG_SRC): $(XDG_SHELL) | $(DIRS)
-	@printf "$(CYAN)Generating [ $@ ]$(RESET)\n"
+$(xdg_src): $(xdg_shell) | $(dirs)
+	@printf "$(cyan)Generating [ $@ ]$(reset)\n"
 	$(Q)wayland-scanner private-code $< $@
 
-$(XDG_HDR): $(XDG_SHELL) | $(DIRS)
-	@printf "$(CYAN)Generating [ $@ ]$(RESET)\n"
+$(xdg_hdr): $(xdg_shell) | $(dirs)
+	@printf "$(cyan)Generating [ $@ ]$(reset)\n"
 	$(Q)wayland-scanner client-header $< $@
 
-$(RELEASE_OBJS) $(DEBUG_OBJS): | $(DIRS)
+$(release_objs) $(debug_objs): | $(dirs)
 
-$(DIRS):
+$(dirs):
 	mkdir -p $@
 
-$(RELEASE_CMDS): $(RELEASE_OBJS)
+$(release_cmds): $(release_objs)
 	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
 		> $@ || (rm -f $@ && false)
 
-$(DEBUG_CMDS): $(DEBUG_OBJS)
+$(debug_cmds): $(debug_objs)
 	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
 		> $@ || (rm -f $@ && false)
 
-$(UT_TARGET): $(UT_COV)
+$(ut_target): $(ut_cov)
 
-$(UT_COV): $(UT_INFO)
-	@printf "$(MAGENTA)Generating [ $@ ]$(RESET)\n"
+$(ut_cov): $(ut_info)
+	@printf "$(magenta)Generating [ $@ ]$(reset)\n"
 	genhtml \
 		--branch-coverage \
 		--function-coverage \
 		--output-directory $@ \
 		--rc geninfo_auto_base=1 \
 		--show-details \
-		--title "$(BIN)-$(VERSION_CORE)$(if $(GITHUB_SHA), ($(GITHUB_SHA)))" \
+		--title "$(BIN)-$(version_core)$(if $(GITHUB_SHA), ($(GITHUB_SHA)))" \
 		$<
 
-$(UT_INFO): $(UT_REPORT)
-	@printf "$(MAGENTA)Generating [ $@ ]$(RESET)\n"
+$(ut_info): $(ut_report)
+	@printf "$(magenta)Generating [ $@ ]$(reset)\n"
 	lcov \
 		--base-directory $(CURDIR) \
 		--capture \
-		--directory $(UT_DIR) \
+		--directory $(ut_dir) \
 		--exclude "/usr/include/*" \
 		--exclude "*/build/gen/*" \
 		--output-file $@ \
 		--rc lcov_branch_coverage=1 \
 		--rc lcov_function_coverage=1
 
-$(UT_REPORT): $(UT_BIN)
-	$(UT_BIN) \
-		--jobs $(UT_CPUS) \
+$(ut_report): $(ut_bin)
+	$(ut_bin) \
+		--jobs $(ut_cpus) \
 		--xml=$@ \
 		--tap
 
-$(UT_BIN): $(UT_OBJS) 
-	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
+$(ut_bin): $(ut_objs) 
+	@printf "$(yellow)Linking [ $@ ]$(reset)\n"
 	$(Q)gcc -o $@ $^ $(LDLIBS) $(LDFLAGS)
-	@printf "$(GREEN)Built target [ $@ ]$(RESET)\n"
+	@printf "$(green)Built target [ $@ ]$(reset)\n"
 
-$(UT_DIR)/%.o: %.c
-	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+$(ut_dir)/%.o: %.c
+	@printf "$(blue)Building [ $@ ]$(reset)\n"
 	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
-$(UT_DIR)/%.o: $(BUILD_DIR)/%.c
-	@printf "$(BLUE)Building [ $@ ]$(RESET)\n"
+$(ut_dir)/%.o: $(BUILD_DIR)/%.c
+	@printf "$(blue)Building [ $@ ]$(reset)\n"
 	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
 
-$(UT_OBJS): | $(DIRS)
+$(ut_objs): | $(dirs)
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -705,95 +708,94 @@ clean:
 format:
 	$(SHELL) scripts/mk-format.sh
 
-tags: $(HDR) $(SRC)
+tags: $(hdr) $(src)
 	ctags -f tags $^
 
-install: $(RELEASE_BIN)
+install: $(release_bin)
 	cp $< $(DESTDIR)
 
 uninstall:
 	rm -f $(DESTDIR)/$(BIN)
 
-$(ENVFILE): | $(DIRS)
+$(envfile): | $(dirs)
 	@env \
 		$(if $(ARTIFACTORY_API_KEY),ARTIFACTORY_API_KEY=) \
 		$(if $(DOCKER_USERNAME),DOCKER_USERNAME=) \
 		$(if $(DOCKER_PASSWORD),DOCKER_PASSWORD=) \
 		> $@
 
-$(OS_RELEASE): /etc/os-release | $(DIRS)
+$(os_release): /etc/os-release | $(dirs)
 	cp -f $< $@
 
-$(VERSION_FILE): | $(DIRS)
-	@printf "%s\n--\n" $(VERSION_LIST) > $@ || (rm -f $@ && false)
+$(version_file): | $(dirs)
+	@printf "%s\n--\n" $(version_list) > $@ || (rm -f $@ && false)
 
-$(PKGCONF_CHECK): $(PKGCONF_DATA)
-	@printf "$(GREEN)Performed [ $@ ]$(RESET)\n"
+$(pkgconf_check): $(pkgconf_data)
+	@printf "$(green)Performed [ $@ ]$(reset)\n"
 
-$(PKGCONF_DATA): | $(DIRS)
-	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
-	$(Q)$(PKGCONF) --print-errors --print-provides $(PKGCONF_LIBS) \
+$(pkgconf_data): | $(dirs)
+	@printf "$(blue)Generating [ $@ ]$(reset)\n"
+	$(Q)$(PKGCONF) --print-errors --print-provides $(pkgconf_libs) \
 		| tr --squeeze-repeats " =" " " \
 		| column --table-name pkgconf --table-columns library,version --json \
 		| tee $@ || (rm -f $@ && false)
 
-clang-analysis: $(ANALYZER_FILES)
+clang-analysis: $(analyzer_files)
 
-$(ANALYZER_OUTPUT): | $(ANALYZER_FILES)
-	ln --relative --symbolic --force  $(ANALYZER_DIR) $@
+$(analyzer_output): | $(analyzer_files)
+	ln --relative --symbolic --force  $(analyzer_dir) $@
 
-$(ANALYZER_DIR)/%.txt: %.c $(ANALYZER_DEFMAP)
-	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
-	$(Q)clang --analyze $(ANALYZER_FLAGS) $< 2>&1 | tee $@
+$(analyzer_dir)/%.txt: %.c $(analyzer_defmap)
+	@printf "$(blue)Generating [ $@ ]$(reset)\n"
+	$(Q)clang --analyze $(analyzer_flags) $< 2>&1 | tee $@
 
-$(ANALYZER_DIR)/%.txt: $(BUILD_DIR)/%.c $(ANALYZER_DEFMAP)
-	@printf "$(BLUE)Generating [ $@ ]$(RESET)\n"
-	$(Q)$(ANALYZER) $(ANALYZER_FLAGS) $< 2>&1 | tee $@
+$(analyzer_dir)/%.txt: $(BUILD_DIR)/%.c $(analyzer_defmap)
+	@printf "$(blue)Generating [ $@ ]$(reset)\n"
+	$(Q)$(ANALYZER) $(analyzer_flags) $< 2>&1 | tee $@
 
-$(ANALYZER_DEFMAP): $(DEBUG_CMDS) $(SRC)
-	$(Q)clang-extdef-mapping -p $(DEBUG_CMDS) $(SRC) > $@ || (rm -f $@ && false)
+$(analyzer_defmap): $(debug_cmds) $(src)
+	$(Q)clang-extdef-mapping -p $(debug_cmds) $(src) > $@ || (rm -f $@ && false)
 
-$(CPPCHECK): $(CPPCHECK_OUTPUT)
+$(cppcheck): $(cppcheck_output)
 
-$(CPPCHECK_OUTPUT): $(CPPCHECK_RESULTS) 
-	@printf "$(YELLOW)Generating report [ $@ ]$(RESET)\n"
+$(cppcheck_output): $(cppcheck_results) 
+	@printf "$(yellow)Generating report [ $@ ]$(reset)\n"
 	@rm -rf $@
 	$(Q)cppcheck-htmlreport --file=$< --title=$(BIN) --report-dir=$@
 
-$(CPPCHECK_RESULTS): $(DEBUG_CMDS) | $(DIRS)
-	@printf "$(YELLOW)Analyzing project [ $< ]$(RESET)\n"
-	$(Q)cppcheck $(CPPCHECK_FLAGS) --project=$< --output-file=$@
+$(cppcheck_results): $(debug_cmds) | $(dirs)
+	@printf "$(yellow)Analyzing project [ $< ]$(reset)\n"
+	$(Q)cppcheck $(cppcheck_flags) --project=$< --output-file=$@
 
-$(SHELLCHECK): $(SHELLCHECK_OUTPUT)
+$(shellcheck): $(shellcheck_output)
 
-$(SHELLCHECK_OUTPUT): $(SHELLCHECK_INPUT) | $(DIRS)
-	$(Q)shellcheck $(SHELLCHECK_FLAGS) $^ | tee $@ || (rm -f $@ && false)
+$(shellcheck_output): $(shellcheck_input) | $(dirs)
+	$(Q)shellcheck $(shellcheck_flags) $^ | tee $@ || (rm -f $@ && false)
 
 # Use sed to strip the directories in which the tarball will be created off of
 # all input paths. This is required so the paths don't appear when extracting
 # the tarball.
-$(TARBALL): \
-		$(RELEASE_BIN) \
-		$(RELEASE_CMDS) \
-		$(DEBUG_BIN) \
-		$(DEBUG_CMDS) \
-		$(ANALYZER_OUTPUT) \
-		$(CPPCHECK_OUTPUT) \
-		$(ENVFILE) \
-		$(OS_RELEASE) \
-		$(PKGCONF_DATA) \
-		$(PKGCONF_VERSION) \
-		$(SHELLCHECK_OUTPUT) \
-		$(UT_REPORT) \
-		$(UT_COV) \
-		$(VERSION_FILE)
-	@printf "$(MAGENTA)Packaging [ $@ ]$(RESET)\n"
+$(tarball): \
+		$(release_bin) \
+		$(release_cmds) \
+		$(debug_bin) \
+		$(debug_cmds) \
+		$(analyzer_output) \
+		$(cppcheck_output) \
+		$(envfile) \
+		$(os_release) \
+		$(pkgconf_data) \
+		$(shellcheck_output) \
+		$(ut_report) \
+		$(ut_cov) \
+		$(version_file)
+	@printf "$(magenta)Packaging [ $@ ]$(reset)\n"
 	$(Q)find -H $^ -type f -size +0 \
 		| sed -e 's/^\(\.\/\)\?$(@D)\///g' \
 		| $(TAR) --create --file $@ --gzip --directory $(@D) --files-from -
 
-artifactory-upload: $(TARBALL)
-	@printf "$(MAGENTA)Uploading [ $^ ]$(RESET)\n"
+artifactory-upload: $(tarball)
+	@printf "$(magenta)Uploading [ $^ ]$(reset)\n"
 ifdef ARTIFACTORY_API_KEY
 	$(Q)curl \
 		--silent \
@@ -805,8 +807,8 @@ ifdef ARTIFACTORY_API_KEY
 		--header "X-Checksum-Sha256:$$(sha256sum $^ | cut --fields=1 -d " ")" \
 		--header "X-Checksum-Sha1:$$(sha1sum $^ | cut --fields=1 -d " ")" \
 		--upload-file $^ \
-		"$(ARTIFACTORY_UPLOAD_URL)/$(^F)"
-	@printf "$(GREEN)Uploaded [ $^ ]$(RESET)\n"
+		"$(artifactory_upload_url)/$(^F)"
+	@printf "$(green)Uploaded [ $^ ]$(reset)\n"
 else
 	@printf "** ERROR: $@: \"ARTIFACTORY_API_KEY\" not specified\n"
 	@false
@@ -814,10 +816,10 @@ endif
 
 
 .PHONY: \
-	$(ENVFILE) \
-	$(PKGCONF_CHECK) \
-	$(SHELLCHECK) \
-	$(UT_TARGET) \
+	$(envfile) \
+	$(pkgconf_check) \
+	$(shellcheck) \
+	$(ut_target) \
 	all \
 	artifactory-upload \
 	clang-analysis \
@@ -830,11 +832,11 @@ endif
 	uninstall
 
 .SILENT: \
-	$(ANALYZER_OUTPUT) \
+	$(analyzer_output) \
 	clean \
 	format \
-	$(RELEASE_CMDS) \
-	$(DEBUG_CMDS) \
+	$(release_cmds) \
+	$(debug_cmds) \
 	tags \
-	$(DIRS)
+	$(dirs)
 
