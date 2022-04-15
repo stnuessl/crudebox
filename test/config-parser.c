@@ -26,7 +26,7 @@
 #include "util/die.h"
 #include "util/errstr.h"
 
-Test(config_parser_run, invalid_path)
+Test(config_parser, 001_config_parser_run)
 {
     struct config_parser parser;
 
@@ -37,7 +37,7 @@ Test(config_parser_run, invalid_path)
     config_parser_destroy(&parser);
 }
 
-Test(config_parser_run, valid_path)
+Test(config_parser, 002_config_parser_run)
 {
     struct config_parser parser;
 
@@ -106,12 +106,12 @@ int test_config_parser_run(const char *config)
     return err;
 }
 
-Test(config_parser_run, valid_config)
+Test(config_parser, 003_config_parser_run)
 {
     cr_assert(test_config_parser_run(valid_config) == 0);
 }
 
-Test(config_parser_run, invalid_config, .exit_code = EXIT_FAILURE)
+Test(config_parser, 004_config_parser_run, .exit_code = EXIT_FAILURE)
 {
     (void) test_config_parser_run(invalid_config);
 }

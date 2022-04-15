@@ -25,7 +25,7 @@
 #include "util/io-util.h"
 #include "util/macro.h"
 
-Test(io_util_read, valid_fd)
+Test(io_util, 001_io_util_read)
 {
     char buf[4];
     int fd;
@@ -37,65 +37,12 @@ Test(io_util_read, valid_fd)
     cr_assert(io_util_read(fd, buf, ARRAY_SIZE(buf)) == 0);
 }
 
-Test(io_util_read, invalid_fd)
+Test(io_util, 002_io_util_read)
 {
     cr_assert(io_util_read(-1, NULL, 0) == -EBADF);
 }
 
-Test(io_util_read_all, valid_fd)
-{
-    char *buf;
-    size_t size;
-    int fd;
-
-    fd = open("/usr/include/stdlib.h", O_RDONLY);
-    if (fd < 0)
-        die("open(): %s\n", errstr(errno));
-
-    cr_assert(io_util_read_all(fd, &buf, &size) == 0);
-}
-
-Test(io_util_read_all, invalid_fd)
-{
-    cr_assert(io_util_read_all(-1, NULL, 0) == -EBADF);
-}
-
-Test(io_util_path_read_all, valid_file)
-{
-    char *buf;
-    size_t size;
-
-    cr_assert(io_util_path_read_all("/usr/include/stdlib.h", &buf, &size) == 0);
-
-    free(buf);
-}
-
-Test(io_util_path_read_all, invalid_file)
-{
-    cr_assert(io_util_path_read_all("", NULL, NULL) == -ENOENT);
-}
-
-Test(io_util_read_all_str, valid_fd)
-{
-    char *buf;
-    size_t size;
-    int fd;
-
-    fd = open("/usr/include/stdlib.h", O_RDONLY);
-    if (fd < 0)
-        die("open(): %s\n", errstr(errno));
-
-    cr_assert(io_util_read_all_str(fd, &buf, &size) == 0);
-
-    free(buf);
-}
-
-Test(io_util_read_all_str, invalid_fd)
-{
-    cr_assert(io_util_read_all_str(-1, NULL, NULL) == -EBADF);
-}
-
-Test(io_util_path_read_all_str, valid_file)
+Test(io_util, 001_io_util_path_read_all_str)
 {
     char *path, *buf;
     size_t size;
@@ -103,11 +50,12 @@ Test(io_util_path_read_all_str, valid_file)
     path = "/usr/include/stdlib.h";
 
     cr_assert(io_util_path_read_all_str(path, &buf, &size) == 0);
+    cr_assert(buf[size] == '\0');
 
     free(buf);
 }
 
-Test(io_util_path_read_all_str, invalid_file)
+Test(io_util, 002_io_util_path_read_all_str)
 {
     cr_assert(io_util_path_read_all_str("", NULL, NULL) == -ENOENT);
 }

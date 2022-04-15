@@ -23,15 +23,12 @@
 
 #include "util/errstr.h"
 
-Test(errstr, valid_code)
+Test(errstr, 001_errstr)
 {
     cr_assert(strcmp(errstr(0), "OK") == 0);
     cr_assert(strcmp(errstr(EPERM), "EPERM") == 0);
     cr_assert(strcmp(errstr(-ENOENT), "ENOENT") == 0);
-}
 
-Test(errstr, invalid_code)
-{
     cr_assert(errstr(INT_MIN) == NULL);
     cr_assert(errstr(INT_MAX) == NULL);
 }
