@@ -40,12 +40,11 @@ Test(string_util, 001_strneq)
     cr_assert(func("aa", "aa", 1));
     cr_assert(func("bb", "bb", 2));
     cr_assert(func("ccc", "ccc", 3));
- 
+
     cr_assert(!func("aa", "bb", 1));
     cr_assert(!func("aa", "bb", 2));
     cr_assert(!func("aa", "aaa", 3));
 }
-
 
 Test(string_util, 001_strlower)
 {
@@ -84,7 +83,7 @@ Test(string_util, 001_strsuffix)
     cr_assert(strsuffix("aabb", "bb") == 0);
     cr_assert(strsuffix("aabb", "abb") == 0);
     cr_assert(strsuffix("aabb", "aabb") == 0);
-    
+
     cr_assert(strsuffix("aabb", "x") != 0);
     cr_assert(strsuffix("aabb", "bx") != 0);
     cr_assert(strsuffix("aabb", "bbx") != 0);
@@ -104,7 +103,7 @@ Test(string_util, 001_strconcat2a)
 
     strconcat2a(&result, "", "");
     cr_assert(strcmp(result, "") == 0);
-    
+
     strconcat2a(&result, "aa", "bb");
     cr_assert(strcmp(result, "aab") != 0);
 
@@ -114,7 +113,7 @@ Test(string_util, 001_strconcat2a)
 
 Test(string_util, 001_strconcat)
 {
-    const char *strings[] = { "aa", "bb", "cc", "dd" };
+    const char *strings[] = {"aa", "bb", "cc", "dd"};
     char *str;
 
     str = strconcat(strings, ARRAY_SIZE(strings));
@@ -126,7 +125,7 @@ Test(string_util, 001_strconcat)
 
 Test(string_util, 002_strconcat)
 {
-    const char *strings[] = { "", "bb", "", "" };
+    const char *strings[] = {"", "bb", "", ""};
     char *str;
 
     str = strconcat(strings, ARRAY_SIZE(strings));
@@ -160,9 +159,9 @@ Test(string_util, 001_strconcat2)
 
 Test(string_util, 001_strnconcat)
 {
-    const char *strings[] = { "aa", "bb", "cc", "dd" };
+    const char *strings[] = {"aa", "bb", "cc", "dd"};
     char buf[16], *str;
-    
+
     str = strnconcat(buf, ARRAY_SIZE(buf), strings, ARRAY_SIZE(strings));
 
     cr_assert(str == buf);
@@ -171,9 +170,9 @@ Test(string_util, 001_strnconcat)
 
 Test(string_util, 002_strnconcat)
 {
-    const char *strings[] = { "ww", "xx", "yy", "zz" };
+    const char *strings[] = {"ww", "xx", "yy", "zz"};
     char buf[8], *str;
-    
+
     str = strnconcat(buf, ARRAY_SIZE(buf), strings, ARRAY_SIZE(strings));
 
     cr_assert(str == buf);
@@ -182,9 +181,9 @@ Test(string_util, 002_strnconcat)
 
 Test(string_util, 003_strnconcat)
 {
-    const char *strings[] = { "aa", "", "cc", "dd" };
+    const char *strings[] = {"aa", "", "cc", "dd"};
     char buf[5], *str;
-    
+
     str = strnconcat(buf, ARRAY_SIZE(buf), strings, ARRAY_SIZE(strings));
 
     cr_assert(str == buf);
@@ -193,9 +192,9 @@ Test(string_util, 003_strnconcat)
 
 Test(string_util, 004_strnconcat)
 {
-    const char *strings[] = { "", "", "", "" };
+    const char *strings[] = {"", "", "", ""};
     char buf[2], *str;
-    
+
     str = strnconcat(buf, ARRAY_SIZE(buf), strings, ARRAY_SIZE(strings));
 
     cr_assert(str == buf);
@@ -205,7 +204,7 @@ Test(string_util, 004_strnconcat)
 Test(string_util, 001_strnconcat2)
 {
     char buf[8], *str;
-    
+
     str = strnconcat2(buf, ARRAY_SIZE(buf), "aa", "bb");
 
     cr_assert(str == buf);
@@ -215,10 +214,9 @@ Test(string_util, 001_strnconcat2)
 Test(string_util, 002_strnconcat2)
 {
     char buf[2], *str;
-    
+
     str = strnconcat2(buf, ARRAY_SIZE(buf), "yy", "zz");
 
     cr_assert(str == buf);
     cr_assert(strcmp(str, "y") == 0);
 }
-

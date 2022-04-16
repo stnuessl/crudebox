@@ -69,7 +69,15 @@ static inline int strprefix(const char *s, const char *prefix)
 
 static inline int strsuffix(const char *s, const char *suffix)
 {
-    return strcmp(s + strlen(s) - strlen(suffix), suffix);
+    size_t n1, n2;
+
+    n1 = strlen(s);
+    n2 = strlen(suffix);
+
+    if (n1 < n2)
+        return '\0' - suffix[n1];
+
+    return strcmp(s + n1 - n2, suffix);
 }
 
 char *strconcat(const char **array, int size);
