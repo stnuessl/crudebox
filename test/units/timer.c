@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021   Steffen Nuessle
+ * Copyright (C) 2022   Steffen Nuessle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,20 +15,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <limits.h>
-#include <string.h>
+#include <setjmp.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include <criterion/criterion.h>
+#include <cmocka.h>
 
-#include "util/errstr.h"
-
-Test(errstr, 001_errstr)
+static void T001(void **state)
 {
-    cr_assert(strcmp(errstr(0), "OK") == 0);
-    cr_assert(strcmp(errstr(EPERM), "EPERM") == 0);
-    cr_assert(strcmp(errstr(-ENOENT), "ENOENT") == 0);
+    (void) state;
+}
 
-    cr_assert(errstr(INT_MIN) == NULL);
-    cr_assert(errstr(INT_MAX) == NULL);
+static const struct CMUnitTest tests[] = {
+    cmocka_unit_test(T001),
+};
+
+int main(int argc, char *argv[])
+{
+    (void) argc;
+    (void) argv;
+
+    return cmocka_run_group_tests_name(__FILE__, tests, NULL, NULL);
 }

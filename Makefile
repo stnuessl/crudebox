@@ -464,7 +464,6 @@ LDFLAGS		+= $(EXTRA_LDFLAGS)
 # Define unit test targets
 #
 ifeq (,$(shell $(PKGCONF) --print-errors --exists cmocka 2>&1))
-$(info **************************************)
 ut_target	:= unit-tests
 ut_srcdir	:= test/units
 ut_dir		:= $(test_dir)/units

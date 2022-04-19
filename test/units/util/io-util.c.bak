@@ -25,21 +25,70 @@
 #include "util/io-util.h"
 #include "util/macro.h"
 
+ssize_t __real_read(int fd, void *buf, size_t size);
+
+static ssize_t (*read_mock)(int, void *, size_t);
+
+ssize_t __wrap_read(int fd, void *buf, size_t size)
+{
+    if (read_mock)
+        return read_mock(fd, buf, size);
+
+    return __real_read(fd, buf, size);
+}
+
+#if 0
+static int (*open_mock)(const char *, int, mode_t);
+
+int __wrap_open(const char *path, int flags, mode_t mode)
+{
+    return open_mock(path, flags, mode);
+}
+#endif
+
+static ssize_t read_OK(int fd, void *buf, size_t size)
+{
+    cr_assert(fd >= 0);
+    cr_assert(buf != NULL);
+    cr_assert(size > 0);
+
+    return size;
+}
+
+static ssize_t read_EBADF(int fd, void *buf, size_t size)
+{
+    cr_assert(fd < 0);
+    (void) buf;
+    (void) size;
+
+    errno = EBADF;
+    return -1;
+}
+
+static ssize_t read_EINTR(int fd, void *buf, size_t size)
+{
+    cr_assert(fd >= 0);
+    cr_assert(buf != NULL);
+    cr_assert(size > 0);
+
+    read_mock = read_OK;
+
+    errno = EINTR;
+    return -1;
+}
+
 Test(io_util, 001_io_util_read)
 {
     char buf[4];
-    int fd;
 
-    fd = open("/dev/urandom", O_RDONLY);
-    if (fd < 0)
-        die("open(): %s\n", errstr(errno));
+    read_mock = &read_OK;
+    cr_assert(io_util_read(4, buf, ARRAY_SIZE(buf)) == 0);
 
-    cr_assert(io_util_read(fd, buf, ARRAY_SIZE(buf)) == 0);
-}
-
-Test(io_util, 002_io_util_read)
-{
+    read_mock = &read_EBADF;
     cr_assert(io_util_read(-1, NULL, 0) == -EBADF);
+
+    read_mock = &read_EINTR;
+    cr_assert(io_util_read(5, buf, ARRAY_SIZE(buf)) == 0);
 }
 
 Test(io_util, 001_io_util_path_read_all_str)
@@ -49,6 +98,8 @@ Test(io_util, 001_io_util_path_read_all_str)
 
     path = "/usr/include/stdlib.h";
 
+    read_mock = NULL;
+
     cr_assert(io_util_path_read_all_str(path, &buf, &size) == 0);
     cr_assert(buf[size] == '\0');
 
@@ -57,5 +108,7 @@ Test(io_util, 001_io_util_path_read_all_str)
 
 Test(io_util, 002_io_util_path_read_all_str)
 {
+    read_mock = NULL;
+
     cr_assert(io_util_path_read_all_str("", NULL, NULL) == -ENOENT);
 }
