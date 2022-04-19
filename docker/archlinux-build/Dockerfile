@@ -9,11 +9,13 @@ FROM archlinux:base
 RUN pacman -Syu --noconfirm \
     cairo \
     clang \
+    cmocka \
     cppcheck \
     ctags \
     findutils \
     freetype2 \
     gcc \
+    lcov \
     libxcb \
     libxkbcommon \
     make \

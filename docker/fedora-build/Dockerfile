@@ -16,6 +16,8 @@ RUN dnf install --assumeyes \
     findutils \
     freetype-devel \
     gcc \
+    lcov \
+    libcmocka-devel \
     libxcb-devel \
     libxkbcommon-devel \
     make \

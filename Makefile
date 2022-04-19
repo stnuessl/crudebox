@@ -69,6 +69,7 @@ BUILD_DIR		:= build
 release_dir		:= $(BUILD_DIR)/release
 debug_dir		:= $(BUILD_DIR)/debug
 gen_dir			:= $(BUILD_DIR)/gen
+test_dir		:= $(BUILD_DIR)/test
 
 
 #
@@ -216,6 +217,7 @@ dirs := \
 	$(debug_dir) \
 	$(release_dir) \
 	$(gen_dir) \
+	$(test_dir) \
 	$(sort $(dir $(debug_objs))) \
 	$(sort $(dir $(release_objs))) \
 	$(sort $(dir $(gen_src) $(gen_hdr))) \
@@ -461,21 +463,31 @@ LDFLAGS		+= $(EXTRA_LDFLAGS)
 #
 # Define unit test targets
 #
-ifeq (,$(shell $(PKGCONF) --print-errors --exists criterion 2>&1))
-ut_target := unit-tests
-ut_dir := $(BUILD_DIR)/unit-test
-ut_report := $(ut_dir)/report.xml
-ut_bin := $(ut_dir)/crudebox
-ut_cpus := $(shell nproc)
-ut_src := $(shell find test/ -name "*.c")
+ifeq (,$(shell $(PKGCONF) --print-errors --exists cmocka 2>&1))
+$(info **************************************)
+ut_target	:= unit-tests
+ut_srcdir	:= test/units
+ut_dir		:= $(test_dir)/units
+ut_bindir	:= $(ut_dir)/bin
+ut_cpus		:= $(shell nproc)
+ut_src		:= $(shell find $(ut_srcdir) -name "*.c" -printf "%P\n")
 
 ut_objs := \
-	$(patsubst %.c,$(ut_dir)/%.o,$(ut_src)) \
+	$(patsubst %.c,$(ut_bindir)/%.o,$(ut_src)) \
 	$(patsubst $(release_dir)/%.o,$(ut_dir)/%.o,$(release_objs))
+
+#
+# Every unit test source file has its own executable and report file.
+#
+ut_units	:= $(patsubst %.c,$(ut_bindir)/%.elf,$(ut_src))
+ut_reports	:= $(patsubst %.elf,%.txt,$(ut_units))
 
 dirs += \
 	$(ut_dir) \
+	$(ut_bindir) \
 	$(sort $(dir $(ut_objs)))
+
+version_list += "cmocka $$($(PKGCONF) --modversion cmocka)"
 
 ifdef clang_used
 version_list += "$$(gcc --version)"
@@ -531,11 +543,11 @@ $(debug_bin): CPPFLAGS		+= -DMEM_NOLEAK
 $(debug_bin): CFLAGS		+= -Og -g2
 $(debug_bin): CXXFLAGS		+= -Og -g2
 
-$(ut_bin): CPPFLAGS 		+= -DUNIT_TESTS_ENABLED -DMEM_NO_LEAK -I$(srcdir)
-$(ut_bin): CFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
-$(ut_bin): CXXFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
-$(ut_bin): LDLIBS			+= $(shell $(PKGCONF) --libs criterion)
-$(ut_bin): LDFLAGS			+= -lgcov
+$(ut_units): CPPFLAGS 		+= -DUNIT_TESTS_ENABLED -DMEM_NO_LEAK -I$(srcdir)
+$(ut_units): CFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
+$(ut_units): CXXFLAGS		+= -Og -g2 -ftest-coverage -fprofile-arcs
+$(ut_units): LDLIBS			:= $(shell $(PKGCONF) --libs cmocka)
+$(ut_units): LDFLAGS			+= -lgcov
 
 syntax-check: CFLAGS   += -fsyntax-only
 syntax-check: CXXFLAGS += -fsyntax-only
@@ -642,7 +654,7 @@ $(xdg_hdr): $(xdg_shell) | $(dirs)
 	@printf "$(cyan)Generating [ $@ ]$(reset)\n"
 	$(Q)wayland-scanner client-header $< $@
 
-$(release_objs) $(debug_objs): | $(dirs)
+$(release_objs) $(debug_objs) $(ut_objs): | $(dirs)
 
 $(dirs):
 	mkdir -p $@
@@ -655,11 +667,11 @@ $(debug_cmds): $(debug_objs)
 	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
 		> $@ || (rm -f $@ && false)
 
-$(ut_target): $(ut_cov)
+$(ut_target): $(ut_reports) $(ut_cov)
 
 $(ut_cov): $(ut_info)
 	@printf "$(magenta)Generating [ $@ ]$(reset)\n"
-	genhtml \
+	$(Q)genhtml \
 		--branch-coverage \
 		--function-coverage \
 		--output-directory $@ \
@@ -668,9 +680,9 @@ $(ut_cov): $(ut_info)
 		--title "$(BIN)-$(version_core)$(if $(GITHUB_SHA), ($(GITHUB_SHA)))" \
 		$<
 
-$(ut_info): $(ut_report)
+$(ut_info): $(ut_reports)
 	@printf "$(magenta)Generating [ $@ ]$(reset)\n"
-	lcov \
+	$(Q)lcov \
 		--base-directory $(CURDIR) \
 		--capture \
 		--directory $(ut_dir) \
@@ -680,27 +692,21 @@ $(ut_info): $(ut_report)
 		--rc lcov_branch_coverage=1 \
 		--rc lcov_function_coverage=1
 
-$(ut_report): $(ut_bin)
-	$(ut_bin) \
-		--jobs $(ut_cpus) \
-		--xml=$@ \
-		--tap
+$(ut_bindir)/%.txt: $(ut_bindir)/%.elf
+	@printf "$(magenta)Executing [ $< ]$(reset)\n"
+	$(Q)./$< | tee $@ || (rm -f $@ && false)
 
-$(ut_bin): $(ut_objs) 
+$(ut_bindir)/%.elf: $(ut_bindir)/%.o $(ut_dir)/$(srcdir)/%.o
 	@printf "$(yellow)Linking [ $@ ]$(reset)\n"
 	$(Q)gcc -o $@ $^ $(LDLIBS) $(LDFLAGS)
-	@printf "$(green)Built target [ $@ ]$(reset)\n"
+
+$(ut_bindir)/%.o: $(ut_srcdir)/%.c
+	@printf "$(blue)Building [ $@ ]$(reset)\n"
+	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
 $(ut_dir)/%.o: %.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
-
-$(ut_dir)/%.o: $(BUILD_DIR)/%.c
-	@printf "$(blue)Building [ $@ ]$(reset)\n"
-	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
-
-
-$(ut_objs): | $(dirs)
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -786,7 +792,7 @@ $(tarball): \
 		$(os_release) \
 		$(pkgconf_data) \
 		$(shellcheck_output) \
-		$(ut_report) \
+		$(ut_reports) \
 		$(ut_cov) \
 		$(version_file)
 	@printf "$(magenta)Packaging [ $@ ]$(reset)\n"

@@ -12,12 +12,12 @@ RUN apt-get update && apt-get --assume-yes install \
     clang \
     clang-tools \
     cppcheck \
-    libcriterion-dev \
     curl \
     findutils \
     gcc \
     lcov \
     libcairo2-dev \
+    libcmocka-dev \
     libfreetype-dev \
     libwayland-dev \
     libx11-xcb-dev \
