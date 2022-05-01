@@ -510,7 +510,7 @@ static void item_list_load_from_directories(struct item_list *list,
         } else {
             const char *home = env_home();
 
-            strconcat2a(&cache, home, ".cache/crudebox/cache");
+            strconcat2a(&cache, home, "/.cache/crudebox/cache");
         }
     }
 
