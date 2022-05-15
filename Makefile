@@ -69,7 +69,6 @@ BUILD_DIR		:= build
 release_dir		:= $(BUILD_DIR)/release
 debug_dir		:= $(BUILD_DIR)/debug
 gen_dir			:= $(BUILD_DIR)/gen
-test_dir		:= $(BUILD_DIR)/test
 
 
 #
@@ -463,40 +462,50 @@ LDFLAGS		+= $(EXTRA_LDFLAGS)
 #
 # Define unit test targets
 #
-ifeq (,$(shell $(PKGCONF) --print-errors --exists cmocka 2>&1))
+ifeq (,$(shell $(PKGCONF) --print-errors --exists gtest gmock 2>&1))
 ut_target	:= unit-tests
-ut_srcdir	:= test/units
-ut_dir		:= $(test_dir)/units
-ut_bindir	:= $(ut_dir)/bin
-ut_cpus		:= $(shell nproc)
-ut_src		:= $(shell find $(ut_srcdir) -name "*.c" -printf "%P\n")
+ut_srcdir	:= gtest/unit-tests
+ut_dir		:= $(BUILD_DIR)/unit-tests
+ut_bindir	:= $(ut_dir)/tests
+ut_src		:= $(shell find $(ut_srcdir) -name "*.cpp" -printf "%P\n")
 
 ut_objs := \
-	$(patsubst %.c,$(ut_bindir)/%.o,$(ut_src)) \
-	$(patsubst $(release_dir)/%.o,$(ut_dir)/%.o,$(release_objs))
+	$(patsubst %.cpp,$(ut_bindir)/%.$(OBJ_SUFFIX),$(ut_src)) \
+	$(patsubst %.c,$(ut_dir)/%.$(OBJ_SUFFIX),$(reg_src_c))
 
 #
 # Every unit test source file has its own executable and report file.
 #
-ut_units	:= $(patsubst %.c,$(ut_bindir)/%.elf,$(ut_src))
-ut_reports	:= $(patsubst %.elf,%.txt,$(ut_units))
+ut_tests	:= $(patsubst %.cpp,$(ut_bindir)/%.elf,$(ut_src))
+ut_reports	:= $(patsubst %.elf,%.txt,$(ut_tests))
 
 dirs += \
 	$(ut_dir) \
 	$(ut_bindir) \
 	$(sort $(dir $(ut_objs)))
 
-version_list += "cmocka $$($(PKGCONF) --modversion cmocka)"
+version_list += "gtest $$($(PKGCONF) --modversion gtest)"
+version_list += "gmock $$($(PKGCONF) --modversion gmock)"
 
 ifdef clang_used
 version_list += "$$(gcc --version)"
 endif
+
+$(ut_tests): CPPFLAGS	+= -DUNIT_TESTS_ENABLED -DMEM_NOLEAK -I$(srcdir)
+$(ut_tests): CPPFLAGS	+= $(shell $(PKGCONF) --libs gtest gmock)
+$(ut_tests): CFLAGS		+= -Og -g2 -ftest-coverage -fprofile-arcs
+$(ut_tests): CXXFLAGS	+= -Og -g2 -ftest-coverage -fprofile-arcs -fno-rtti
+$(ut_tests): LDFLAGS	:=
+$(ut_tests): LDLIBS		:= -lstdc++ $(shell $(PKGCONF) --libs gtest gmock)
 
 ifneq (,$(shell type -fP lcov))
 ut_info := $(ut_dir)/crudebox.info
 ut_cov := $(ut_dir)/coverage
 
 version_list += "$$(lcov --version)"
+
+$(ut_tests): LDLIBS		+= -lgcov
+
 endif
 endif
 
@@ -542,19 +551,13 @@ $(debug_bin): CPPFLAGS		+= -DMEM_NOLEAK
 $(debug_bin): CFLAGS		+= -Og -g2
 $(debug_bin): CXXFLAGS		+= -Og -g2
 
-$(ut_units): CPPFLAGS 		+= -DUNIT_TESTS_ENABLED -DMEM_NO_LEAK -I$(srcdir)
-$(ut_units): CFLAGS			+= -Og -g2 -ftest-coverage -fprofile-arcs
-$(ut_units): CXXFLAGS		+= -Og -g2 -ftest-coverage -fprofile-arcs
-$(ut_units): LDLIBS			:= $(shell $(PKGCONF) --libs cmocka)
-$(ut_units): LDFLAGS			+= -lgcov
-
 syntax-check: CFLAGS   += -fsyntax-only
 syntax-check: CXXFLAGS += -fsyntax-only
 syntax-check: $(debug_objs)
 
 $(release_bin): $(release_objs)
 	@printf "$(yellow)Linking [ $@ ]$(reset)\n"
-	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS) 
+	$(Q)$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 	$(Q)strip --strip-all $@
 	@printf "$(green)Built target [ $@ ]$(reset)\n"
 	@sha256sum --tag $@
@@ -686,7 +689,7 @@ $(ut_info): $(ut_reports)
 		--capture \
 		--directory $(ut_dir) \
 		--exclude "/usr/include/*" \
-		--exclude "*/build/gen/*" \
+		--exclude "*/$(ut_srcdir)/*" \
 		--output-file $@ \
 		--rc lcov_branch_coverage=1 \
 		--rc lcov_function_coverage=1
@@ -695,15 +698,15 @@ $(ut_bindir)/%.txt: $(ut_bindir)/%.elf
 	@printf "$(magenta)Executing [ $< ]$(reset)\n"
 	$(Q)./$< | tee $@ || (rm -f $@ && false)
 
-$(ut_bindir)/%.elf: $(ut_bindir)/%.o $(ut_dir)/$(srcdir)/%.o
+$(ut_bindir)/%.elf: $(ut_bindir)/%.$(OBJ_SUFFIX) $(ut_dir)/$(srcdir)/%.$(OBJ_SUFFIX)
 	@printf "$(yellow)Linking [ $@ ]$(reset)\n"
-	$(Q)gcc -o $@ $^ $(LDLIBS) $(LDFLAGS)
+	$(Q)gcc -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
-$(ut_bindir)/%.o: $(ut_srcdir)/%.c
+$(ut_bindir)/%.$(OBJ_SUFFIX): $(ut_srcdir)/%.cpp
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
-	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CXXFLAGS) $<
 
-$(ut_dir)/%.o: %.c
+$(ut_dir)/%.$(OBJ_SUFFIX): %.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 	$(Q)gcc -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
