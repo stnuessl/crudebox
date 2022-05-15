@@ -40,6 +40,12 @@ Q :=
 #
 BIN := crudebox
 
+#
+# Set object and dependency file suffixes
+#
+OBJ_SUFFIX := o
+DEP_SUFFIX := d
+
 
 #
 # Set the source directory
@@ -183,7 +189,7 @@ endif
 #
 # Define all object and dependency files from $(src) and get
 # a list of all inhabited directories. Special care is taken to prevent 
-# file paths like "build/./src/main.o"
+# file paths like "build/./src/main.$(OBJ_SUFFIX)"
 #
 
 gen_src_c := $(filter %.c,$(gen_src))
@@ -192,13 +198,13 @@ gen_src_cxx := $(filter %.cpp,$(gen_src))
 reg_src_cxx := $(filter %.cpp,$(reg_src))
 
 release_objs := \
-	$(patsubst $(BUILD_DIR)/%.c,$(release_dir)/%.o,$(gen_src_c)) \
-	$(patsubst $(BUILD_DIR)/%.cpp,$(release_dir)/%.o,$(gen_src_cxx)) \
-	$(patsubst %.c,$(release_dir)/%.o,$(reg_src_c)) \
-	$(patsubst %.cpp,$(release_dir)/%.o,$(reg_src_cxx))
+	$(patsubst $(BUILD_DIR)/%.c,$(release_dir)/%.$(OBJ_SUFFIX),$(gen_src_c)) \
+	$(patsubst $(BUILD_DIR)/%.cpp,$(release_dir)/%.$(OBJ_SUFFIX),$(gen_src_cxx)) \
+	$(patsubst %.c,$(release_dir)/%.$(OBJ_SUFFIX),$(reg_src_c)) \
+	$(patsubst %.cpp,$(release_dir)/%.$(OBJ_SUFFIX),$(reg_src_cxx))
 
 debug_objs := \
-	$(patsubst $(release_dir)/%.o,$(debug_dir)/%.o,$(release_objs))
+	$(patsubst $(release_dir)/%.$(OBJ_SUFFIX),$(debug_dir)/%.$(OBJ_SUFFIX),$(release_objs))
 
 #
 # Paths to default targets.
@@ -225,7 +231,7 @@ dirs := \
 #
 # Define dependency files
 #
-deps := $(patsubst %.o,%.d,$(debug_objs) $(release_objs))
+deps := $(patsubst %.$(OBJ_SUFFIX),%.$(DEP_SUFFIX),$(debug_objs) $(release_objs))
 
 version_file := $(BUILD_DIR)/versions.txt
 version_list := \
@@ -240,10 +246,9 @@ version_list := \
 # Variables for the clang analyzer
 #
 ifneq (,$(shell type -fP clang-extdef-mapping))
-ANALYZER := clang --analyze
 analyzer_dir := $(BUILD_DIR)/clang-analyzer
 analyzer_files := \
-	$(patsubst $(release_dir)/%.o,$(analyzer_dir)/%.txt,$(release_objs))
+	$(patsubst $(release_dir)/%.$(OBJ_SUFFIX),$(analyzer_dir)/%.txt,$(release_objs))
 
 analyzer_flags = \
 	--analyzer-output html \
@@ -390,7 +395,7 @@ LDFLAGS := \
 
 CPPFLAGS = \
 	-MMD \
-	-MF $(patsubst %.o,%.d,$@) \
+	-MF $(patsubst %.$(OBJ_SUFFIX),%.$(DEP_SUFFIX),$@) \
 	-MT $@ \
 	$(DEFS) \
 	$(INC) 
@@ -420,12 +425,13 @@ CXXFLAGS := \
 	-pedantic \
 	-fstack-protector-strong \
 	-fno-plt \
-	-Werror \
+#	-Werror \
 #	-fpic \
 #	-Weffc++ \
 #	-fvisibility-inlines-hidden \
 #	-fno-rtti \
 #	-fno-omit-frame-pointer \
+#	-fpermissive \
 
 
 #
@@ -572,10 +578,10 @@ $(debug_bin): $(debug_objs)
 
 src/wl-window.c: $(xdg_hdr)
 
-$(release_dir)/%.o: %.c
+$(release_dir)/%.$(OBJ_SUFFIX): %.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
@@ -591,10 +597,10 @@ else
 	> $(release_dir)/$*.json
 endif
 
-$(release_dir)/%.o: $(BUILD_DIR)/%.c
+$(release_dir)/%.$(OBJ_SUFFIX): $(BUILD_DIR)/%.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
@@ -610,10 +616,10 @@ else
 	> $(release_dir)/$*.json
 endif
 
-$(debug_dir)/%.o: %.c
+$(debug_dir)/%.$(OBJ_SUFFIX): %.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
@@ -629,10 +635,10 @@ else
 	> $(debug_dir)/$*.json
 endif
 
-$(debug_dir)/%.o: $(BUILD_DIR)/%.c
+$(debug_dir)/%.$(OBJ_SUFFIX): $(BUILD_DIR)/%.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.o,%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
@@ -662,11 +668,11 @@ $(dirs):
 	mkdir -p $@
 
 $(release_cmds): $(release_objs)
-	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
+	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.$(OBJ_SUFFIX),%.json,$^) \
 		> $@ || (rm -f $@ && false)
 
 $(debug_cmds): $(debug_objs)
-	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.o,%.json,$^) \
+	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(patsubst %.$(OBJ_SUFFIX),%.json,$^) \
 		> $@ || (rm -f $@ && false)
 
 $(ut_target): $(ut_reports) $(ut_cov)
@@ -759,7 +765,7 @@ $(analyzer_dir)/%.txt: %.c $(analyzer_defmap)
 
 $(analyzer_dir)/%.txt: $(BUILD_DIR)/%.c $(analyzer_defmap)
 	@printf "$(blue)Generating [ $@ ]$(reset)\n"
-	$(Q)$(ANALYZER) $(analyzer_flags) $< 2>&1 | tee $@
+	$(Q)clang --analyze $(analyzer_flags) $< 2>&1 | tee $@
 
 $(analyzer_defmap): $(debug_cmds) $(src)
 	$(Q)clang-extdef-mapping -p $(debug_cmds) $(src) > $@ || (rm -f $@ && false)
