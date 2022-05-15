@@ -148,6 +148,7 @@ void widget_init(struct widget *widget)
 
     list_view_init(&widget->list_view);
     list_view_set_cairo(&widget->list_view, widget->cairo);
+    list_view_set_line_width(&widget->list_view, 2);
 
     cairo_surface_destroy(surface);
 }

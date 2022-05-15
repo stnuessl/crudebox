@@ -40,6 +40,9 @@ struct list_view {
     uint32_t x2;
     uint32_t y2;
 
+    uint32_t entry_height;
+    uint32_t line_width;
+
     uint32_t glyph_x;
     uint32_t glyph_y;
 
@@ -62,6 +65,12 @@ void list_view_destroy(struct list_view *view);
 static inline void list_view_set_cairo(struct list_view *view, cairo_t *cairo)
 {
     view->cairo = cairo;
+}
+
+static inline void list_view_set_line_width(struct list_view *view,
+                                            uint32_t width)
+{
+    view->line_width = width;
 }
 
 static inline void list_view_set_item_list(struct list_view *view,
@@ -118,7 +127,9 @@ static inline void list_view_set_lines(struct list_view *view, uint32_t rgba)
 
 static inline void list_view_set_max_rows(struct list_view *view, int n)
 {
-    view->entries = xrealloc(view->entries, n * sizeof(*view->entries));
+    size_t size = n * sizeof(*view->entries);
+
+    view->entries = (const char **) xrealloc(view->entries, size);
     view->max_entries = n;
 }
 

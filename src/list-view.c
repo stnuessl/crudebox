@@ -74,16 +74,19 @@ static void list_view_update_entry_list(struct list_view *view)
 static void list_view_draw_lines(struct list_view *view)
 {
     cairo_antialias_t antialias;
-    uint32_t h;
+    uint32_t y1, y2, h;
 
     antialias = cairo_get_antialias(view->cairo);
 
     cairo_set_antialias(view->cairo, CAIRO_ANTIALIAS_NONE);
-    cairo_set_line_width(view->cairo, 1.0);
+    cairo_set_line_width(view->cairo, view->line_width);
 
-    h = 1 + (view->y2 - view->y1) / view->max_entries;
+    y1 = view->y1;
+    y2 = view->y2;
+    h = view->entry_height + view->line_width;
 
-    for (uint32_t y = view->y1 + h; y < view->y2; y += h) {
+    /* Be sure to center the lines correctly */
+    for (uint32_t y = y1 + h - view->line_width / 2; y < y2; y += h) {
         cairo_move_to(view->cairo, view->x1, y);
         cairo_line_to(view->cairo, view->x2, y);
     }
@@ -104,11 +107,17 @@ static void list_view_update_entry_bg(struct list_view *view, int index)
     const struct color *bg = list_view_get_bg(view, index);
     uint32_t x, y, w, h;
 
-    w = view->x2 - view->x1;
-    h = (view->y2 - view->y1) / view->max_entries;
+    /*
+     * 1st rectangle: (x, y, w, h)
+     * 2nd rectangle: (x, y + h + 1, w, h)
+     * ...
+     * nth rectangle: (x, y + n * (h + 1), w, h)
+     */
 
     x = view->x1;
-    y = view->y1 + index * (h + 1);
+    y = view->y1 + index * (view->entry_height + view->line_width);
+    w = view->x2 - view->x1;
+    h = view->entry_height;
 
     cairo_rectangle(view->cairo, x, y, w, h);
     cairo_set_source_rgba(view->cairo, bg->red, bg->green, bg->blue, bg->alpha);
@@ -124,7 +133,7 @@ static void list_view_update_entry_fg(struct list_view *view, int index)
     cairo_status_t status;
 
     x = view->glyph_x;
-    y = view->glyph_y + index * (1 + (view->y2 - view->y1) / view->max_entries);
+    y = view->glyph_y + index * (view->entry_height + view->line_width);
 
     status = cairo_scaled_font_text_to_glyphs(view->font,
                                               x,
@@ -207,7 +216,7 @@ void list_view_size_hint(const struct list_view *view,
     h = view->max_entries * (uint32_t) (1.25 * ext->height);
 
     /* Account for a separation line between all entries. */
-    h += view->max_entries - 1;
+    h += view->line_width * (view->max_entries - 1);
 
     *width = w;
     *height = h;
@@ -220,6 +229,7 @@ void list_view_configure(struct list_view *view,
                          uint32_t x2,
                          uint32_t y2)
 {
+    uint32_t n = view->max_entries;
     double val;
 
     view->font = cairo_get_scaled_font(view->cairo);
@@ -229,11 +239,12 @@ void list_view_configure(struct list_view *view,
     view->x2 = x2;
     view->y2 = y2;
 
-    val = ext->ascent - ext->descent;
-    val += (view->y2 - view->y1) / view->max_entries;
+    view->entry_height = (y2 - y1 - view->line_width * (n - 1)) / n;
 
     view->glyph_x = view->x1 + (uint32_t) ext->max_x_advance;
-    view->glyph_y = view->y1 + (uint32_t) (1 + val / 2.0);
+
+    val = ext->ascent - ext->descent + view->entry_height;
+    view->glyph_y = y1 + (uint32_t) val - (uint32_t) val / 2;
 }
 
 void list_view_up(struct list_view *view)
