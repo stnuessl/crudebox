@@ -30,23 +30,40 @@ extern "C" {
 
 class mock {
 public:
-    MOCK_METHOD(cairo_antialias_t, cairo_get_antialias, (cairo_t *));
-    MOCK_METHOD(cairo_scaled_font_t *, cairo_get_scaled_font, (cairo_t *));
-    MOCK_METHOD(cairo_status_t, cairo_scaled_font_text_to_glyphs, (cairo_scaled_font_t *, double, double, const char *, int, cairo_glyph_t **, int *, cairo_text_cluster_t **, int *, cairo_text_cluster_flags_t *) );
-    MOCK_METHOD(void, cairo_fill, (cairo_t *));
+    MOCK_METHOD(cairo_antialias_t, cairo_get_antialias, (cairo_t *) );
+    MOCK_METHOD(cairo_scaled_font_t *, cairo_get_scaled_font, (cairo_t *) );
+    MOCK_METHOD(cairo_status_t,
+                cairo_scaled_font_text_to_glyphs,
+                (cairo_scaled_font_t *,
+                 double,
+                 double,
+                 const char *,
+                 int,
+                 cairo_glyph_t **,
+                 int *,
+                 cairo_text_cluster_t **,
+                 int *,
+                 cairo_text_cluster_flags_t *) );
+    MOCK_METHOD(void, cairo_fill, (cairo_t *) );
     MOCK_METHOD(void, cairo_glyph_free, (cairo_glyph_t *) );
     MOCK_METHOD(void, cairo_line_to, (cairo_t *, double, double) );
     MOCK_METHOD(void, cairo_move_to, (cairo_t *, double, double) );
-    MOCK_METHOD(void, cairo_rectangle, (cairo_t *, double x, double y, double w, double h));
-    MOCK_METHOD(void, cairo_set_antialias, (cairo_t *, cairo_antialias_t ));
+    MOCK_METHOD(void,
+                cairo_rectangle,
+                (cairo_t *, double x, double y, double w, double h));
+    MOCK_METHOD(void, cairo_set_antialias, (cairo_t *, cairo_antialias_t));
     MOCK_METHOD(void, cairo_set_line_width, (cairo_t *, double) );
-    MOCK_METHOD(void, cairo_set_source_rgba, (cairo_t *, double, double, double, double) );
-    MOCK_METHOD(void, cairo_show_glyphs, (cairo_t *, const cairo_glyph_t *, int) );
+    MOCK_METHOD(void,
+                cairo_set_source_rgba,
+                (cairo_t *, double, double, double, double) );
+    MOCK_METHOD(void,
+                cairo_show_glyphs,
+                (cairo_t *, const cairo_glyph_t *, int) );
     MOCK_METHOD(void, cairo_stroke, (cairo_t *) );
 
-    MOCK_METHOD(void, item_list_lookup_clear, (struct item_list *));
-    MOCK_METHOD(void, item_list_lookup_push_back, (struct item_list *, int));
-    MOCK_METHOD(void, item_list_lookup_pop_back, (struct item_list *));
+    MOCK_METHOD(void, item_list_lookup_clear, (struct item_list *) );
+    MOCK_METHOD(void, item_list_lookup_push_back, (struct item_list *, int) );
+    MOCK_METHOD(void, item_list_lookup_pop_back, (struct item_list *) );
 };
 
 static testing::StrictMock<mock> mock;
@@ -141,7 +158,7 @@ void cairo_stroke(cairo_t *cairo)
     mock.cairo_stroke(cairo);
 }
 
-void item_list_lookup_clear(struct item_list * list)
+void item_list_lookup_clear(struct item_list *list)
 {
     mock.item_list_lookup_clear(list);
 }
@@ -155,7 +172,6 @@ void item_list_lookup_pop_back(struct item_list *list)
 {
     mock.item_list_lookup_pop_back(list);
 }
-
 
 #ifdef __cplusplus
 }

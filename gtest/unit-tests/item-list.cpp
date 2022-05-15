@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <fcntl.h>
 
@@ -29,18 +29,17 @@ extern "C" {
 
 #include <item-list.h>
 
-
 class mock {
 public:
     MOCK_METHOD(const char *, env_crudebox_cache, ());
     MOCK_METHOD(const char *, env_xdg_cache, ());
     MOCK_METHOD(const char *, env_home, ());
 
-    MOCK_METHOD(int, io_util_read_all_str, (int, char **, size_t *));
+    MOCK_METHOD(int, io_util_read_all_str, (int, char **, size_t *) );
 
-    MOCK_METHOD(int, stat, (const char *, struct stat *));
-    MOCK_METHOD(int, ioctl, (int, int, int *));
-    MOCK_METHOD(int, fstat, (int, struct stat *));
+    MOCK_METHOD(int, stat, (const char *, struct stat *) );
+    MOCK_METHOD(int, ioctl, (int, int, int *) );
+    MOCK_METHOD(int, fstat, (int, struct stat *) );
     MOCK_METHOD(ssize_t, read, (int, void *, size_t));
 };
 
@@ -62,7 +61,7 @@ const char *env_home(void)
 }
 
 int io_util_read_all_str(int fd, char **buf, size_t *size)
-{   
+{
     return mock.io_util_read_all_str(fd, buf, size);
 }
 
@@ -92,13 +91,11 @@ ssize_t read(int fd, void *buf, size_t size)
 
 TEST(item_list_init, 001)
 {
-    const char *dirs_list[] = { "/usr/bin", "/usr/bin:/usr/local/bin", NULL };
+    const char *dirs_list[] = {"/usr/bin", "/usr/bin:/usr/local/bin", NULL};
     const char cache[] = "/tmp/ut-crudebox.cache";
-    const char cache_data[] = {
-        "/usr/bin/:/usr/local/bin\n"
-        "5\n\n"
-        "a\nb\nc\nd\ne\n"
-    };
+    const char cache_data[] = {"/usr/bin/:/usr/local/bin\n"
+                               "5\n\n"
+                               "a\nb\nc\nd\ne\n"};
     struct item_list list;
     struct stat st1, st2;
 
@@ -108,56 +105,33 @@ TEST(item_list_init, 001)
     st1.st_mtim.tv_sec = 1;
 
     (void) unlink(cache);
- 
+
     EXPECT_CALL(mock, fstat)
-        .WillRepeatedly(
-            testing::DoAll(
-                testing::SetArgPointee<1>(st1),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
+        .WillRepeatedly(testing::DoAll(testing::SetArgPointee<1>(st1),
+                                       testing::SetErrnoAndReturn(0, 0)));
 
     EXPECT_CALL(mock, stat)
-        .WillRepeatedly(
-            testing::DoAll(
-                testing::SetArgPointee<1>(st2),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
+        .WillRepeatedly(testing::DoAll(testing::SetArgPointee<1>(st2),
+                                       testing::SetErrnoAndReturn(0, 0)));
 
     EXPECT_CALL(mock, io_util_read_all_str)
-        .WillOnce(
-            testing::DoAll(
-                testing::SetArgPointee<1>(nullptr),
-                testing::Return(-1)
-            )
-        )
-        .WillOnce(
-            testing::DoAll(
-                testing::SetArgPointee<1>(strdup(cache_data)),
-                testing::Return(0)
-            )
-        );
+        .WillOnce(testing::DoAll(testing::SetArgPointee<1>(nullptr),
+                                 testing::Return(-1)))
+        .WillOnce(testing::DoAll(testing::SetArgPointee<1>(strdup(cache_data)),
+                                 testing::Return(0)));
 
     EXPECT_CALL(mock, ioctl)
-        .WillOnce(
-            testing::DoAll(
-                testing::SetArgPointee<2>(0),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
-
-
+        .WillOnce(testing::DoAll(testing::SetArgPointee<2>(0),
+                                 testing::SetErrnoAndReturn(0, 0)));
 
     for (int i = 0; i < ARRAY_SIZE(dirs_list); ++i) {
-        EXPECT_CALL(mock, env_crudebox_cache)
-            .WillOnce(testing::Return(cache));
+        EXPECT_CALL(mock, env_crudebox_cache).WillOnce(testing::Return(cache));
 
-//        EXPECT_CALL(mock, env_xdg_cache)
-//            .WillOnce(testing::ReturnNull());
-//
-//        EXPECT_CALL(mock, env_home)
-//            .WillOnce(testing::Return(home));
+        //        EXPECT_CALL(mock, env_xdg_cache)
+        //            .WillOnce(testing::ReturnNull());
+        //
+        //        EXPECT_CALL(mock, env_home)
+        //            .WillOnce(testing::Return(home));
 
         item_list_init(&list, dirs_list[i]);
         item_list_destroy(&list);
@@ -174,6 +148,6 @@ TEST(item_list_init, 002)
 int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
-    
+
     return RUN_ALL_TESTS();
 }

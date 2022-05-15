@@ -24,7 +24,6 @@
 
 #include <item-list.h>
 
-
 int __wrap_io_util_read_all_str(int fd, char **buf, size_t *size)
 {
     (void) fd;
@@ -68,7 +67,7 @@ static void T001_item_list_init(void **state)
 
     item_list_init(&list, NULL);
 
-//    assert_true(item_list_empty(&list));
+    //    assert_true(item_list_empty(&list));
 }
 
 static void T001_item_list_destroy(void **state)

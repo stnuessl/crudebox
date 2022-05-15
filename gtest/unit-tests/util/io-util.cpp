@@ -18,8 +18,8 @@
 #include <fcntl.h>
 #include <stdint.h>
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,10 +29,9 @@ extern "C" {
 
 #include <util/io-util.h>
 
-
 class mock {
 public:
-    MOCK_METHOD(int, fstat, (int, struct stat *__restrict));
+    MOCK_METHOD(int, fstat, (int, struct stat *__restrict) );
     MOCK_METHOD(ssize_t, read, (int, void *, size_t));
 };
 
@@ -131,12 +130,8 @@ TEST(io_util_path_read_all_str, 001)
     st.st_size = 1024;
 
     EXPECT_CALL(mock, fstat)
-        .WillOnce(
-            DoAll(
-                testing::SetArgPointee<1>(st),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
+        .WillOnce(DoAll(testing::SetArgPointee<1>(st),
+                        testing::SetErrnoAndReturn(0, 0)));
 
     EXPECT_CALL(mock, read(testing::_, testing::_, st.st_size))
         .WillOnce(testing::SetErrnoAndReturn(0, st.st_size));
@@ -148,12 +143,8 @@ TEST(io_util_path_read_all_str, 001)
     free(buf);
 
     EXPECT_CALL(mock, fstat)
-        .WillOnce(
-            DoAll(
-                testing::SetArgPointee<1>(st),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
+        .WillOnce(DoAll(testing::SetArgPointee<1>(st),
+                        testing::SetErrnoAndReturn(0, 0)));
 
     EXPECT_CALL(mock, read(testing::_, testing::_, st.st_size))
         .WillOnce(testing::SetErrnoAndReturn(0, st.st_size));
@@ -172,8 +163,7 @@ TEST(io_util_path_read_all_str, 002)
 
 TEST(io_util_read_all_str, 001)
 {
-    EXPECT_CALL(mock, fstat)
-        .WillOnce(testing::SetErrnoAndReturn(EBADF, -1));
+    EXPECT_CALL(mock, fstat).WillOnce(testing::SetErrnoAndReturn(EBADF, -1));
 
     ASSERT_EQ(-EBADF, io_util_read_all_str(-1, NULL, NULL));
 }
@@ -185,15 +175,10 @@ TEST(io_util_read_all_str, 002)
     st.st_size = 4096;
 
     EXPECT_CALL(mock, fstat)
-        .WillOnce(
-                DoAll(
-                    testing::SetArgPointee<1>(st),
-                    testing::SetErrnoAndReturn(0, 0)
-                )
-        );
+        .WillOnce(DoAll(testing::SetArgPointee<1>(st),
+                        testing::SetErrnoAndReturn(0, 0)));
 
-    EXPECT_CALL(mock, read)
-        .WillOnce(testing::SetErrnoAndReturn(EAGAIN, -1));
+    EXPECT_CALL(mock, read).WillOnce(testing::SetErrnoAndReturn(EAGAIN, -1));
 
     ASSERT_EQ(-EAGAIN, io_util_read_all_str(-1, NULL, NULL));
 }
@@ -208,12 +193,8 @@ TEST(io_util_path_read_all, 001)
     st.st_size = 255;
 
     EXPECT_CALL(mock, fstat)
-        .WillOnce(
-            DoAll(
-                testing::SetArgPointee<1>(st),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
+        .WillOnce(DoAll(testing::SetArgPointee<1>(st),
+                        testing::SetErrnoAndReturn(0, 0)));
 
     EXPECT_CALL(mock, read(testing::_, testing::_, st.st_size))
         .WillOnce(testing::SetErrnoAndReturn(0, st.st_size));
@@ -236,16 +217,12 @@ TEST(io_util_read_all, 001)
     struct stat st;
     char *buf;
     size_t size;
-    
+
     st.st_size = 768;
 
     EXPECT_CALL(mock, fstat)
-        .WillOnce(
-            DoAll(
-                testing::SetArgPointee<1>(st),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
+        .WillOnce(DoAll(testing::SetArgPointee<1>(st),
+                        testing::SetErrnoAndReturn(0, 0)));
 
     EXPECT_CALL(mock, read(testing::_, testing::_, st.st_size))
         .WillOnce(testing::SetErrnoAndReturn(0, st.st_size));
@@ -258,8 +235,7 @@ TEST(io_util_read_all, 001)
 
 TEST(io_util_read_all, 002)
 {
-    EXPECT_CALL(mock, fstat)
-        .WillOnce(testing::SetErrnoAndReturn(EBADF, -1));
+    EXPECT_CALL(mock, fstat).WillOnce(testing::SetErrnoAndReturn(EBADF, -1));
 
     ASSERT_EQ(-EBADF, io_util_read_all(-1, NULL, NULL));
 }
@@ -271,12 +247,8 @@ TEST(io_util_read_all, 003)
     st.st_size = 384;
 
     EXPECT_CALL(mock, fstat)
-        .WillOnce(
-            DoAll(
-                testing::SetArgPointee<1>(st),
-                testing::SetErrnoAndReturn(0, 0)
-            )
-        );
+        .WillOnce(DoAll(testing::SetArgPointee<1>(st),
+                        testing::SetErrnoAndReturn(0, 0)));
 
     EXPECT_CALL(mock, read(testing::_, testing::_, st.st_size))
         .WillOnce(testing::SetErrnoAndReturn(EAGAIN, -1));
@@ -287,6 +259,6 @@ TEST(io_util_read_all, 003)
 int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
-    
+
     return RUN_ALL_TESTS();
 }

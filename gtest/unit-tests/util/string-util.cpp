@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -110,8 +110,8 @@ TEST(strsuffix, 001)
 
 TEST(strconcat, 001)
 {
-    const char *buf[] = { "aa", "bb", "cc", "dd" };
-    const char *results[] = { "", "aa", "aabb", "aabbcc", "aabbccdd" };
+    const char *buf[] = {"aa", "bb", "cc", "dd"};
+    const char *results[] = {"", "aa", "aabb", "aabbcc", "aabbccdd"};
 
     for (int i = 0; i <= ARRAY_SIZE(buf); ++i) {
         char *str = strconcat(buf, i);
@@ -135,7 +135,7 @@ TEST(strconcat2, 001)
     ASSERT_STREQ("aa", str2);
     ASSERT_STREQ("bb", str3);
     ASSERT_STREQ("", str4);
-    
+
     free(str1);
     free(str2);
     free(str3);
@@ -144,7 +144,7 @@ TEST(strconcat2, 001)
 
 TEST(strnconcat, 001)
 {
-    const char *buf[] = { "aa", "bb", "cc", "dd" };
+    const char *buf[] = {"aa", "bb", "cc", "dd"};
     char mem[9];
 
     ASSERT_STREQ(strnconcat(mem, 1, buf, ARRAY_SIZE(buf)), "");
@@ -174,10 +174,9 @@ TEST(strnconcat2, 001)
     ASSERT_STREQ(strnconcat2(mem, 99, "aa", "bb"), "aabb");
 }
 
-
 int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
-    
+
     return RUN_ALL_TESTS();
 }

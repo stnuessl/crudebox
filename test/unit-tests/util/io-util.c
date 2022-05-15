@@ -15,13 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <fcntl.h>
 #include <setjmp.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <stdbool.h>
 
 #include <cmocka.h>
 
@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
 
     return cmocka_run_group_tests_name(__FILE__, tests, NULL, NULL);
 }
-
 
 #if 0
 ssize_t __real_read(int fd, void *buf, size_t size);

@@ -192,8 +192,8 @@ size = 15
 # Foreground color
 fg = 0xcccccc
 # Background colors
-bg1 = 0x282828
-bg2 = 0x222222
+bg1 = 0x222222
+bg2 = 0x282828
 # Foreground and background colors for the selected item
 fg-sel = 0x285577
 bg1-sel = 0x181818

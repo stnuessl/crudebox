@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <fcntl.h>
 
@@ -65,12 +65,11 @@ TEST(list_view_size_hint, 001)
 
     ASSERT_GE(width, 10.0);
     ASSERT_EQ(height, 0);
-    
 }
 
 int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
-    
+
     return RUN_ALL_TESTS();
 }
