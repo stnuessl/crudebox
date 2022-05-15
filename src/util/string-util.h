@@ -28,7 +28,7 @@
         const char *s2 = (s2_);                                                \
         size_t len1 = strlen(s1);                                              \
         size_t len2 = strlen(s2) + 1;                                          \
-        char *dst = alloca(len1 + len2);                                       \
+        char *dst = (char *) alloca(len1 + len2);                              \
                                                                                \
         memcpy(dst, s1, len1);                                                 \
         memcpy(dst + len1, s2, len2);                                          \
@@ -39,11 +39,6 @@
 static inline int streq(const char *s1, const char *s2)
 {
     return strcmp(s1, s2) == 0;
-}
-
-static inline int strneq(const char *s1, const char *s2, size_t n)
-{
-    return strncmp(s1, s2, n) == 0;
 }
 
 static inline char *strlower(char *s)
