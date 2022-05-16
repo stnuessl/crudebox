@@ -470,7 +470,7 @@ LDFLAGS		+= $(EXTRA_LDFLAGS)
 #
 ifeq (,$(shell $(PKGCONF) --print-errors --exists gtest gmock 2>&1))
 ut_target	:= unit-tests
-ut_srcdir	:= gtest/unit-tests
+ut_srcdir	:= test/unit-tests
 ut_dir		:= $(BUILD_DIR)/unit-tests
 ut_bindir	:= $(ut_dir)/tests
 ut_src		:= $(shell find $(ut_srcdir) -name "*.cpp" -printf "%P\n")
