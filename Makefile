@@ -498,7 +498,7 @@ version_list += "$$(gcc --version)"
 endif
 
 $(ut_tests): CPPFLAGS	+= -DUNIT_TESTS_ENABLED -DMEM_NOLEAK -I$(srcdir)
-$(ut_tests): CPPFLAGS	+= $(shell $(PKGCONF) --libs gtest gmock)
+$(ut_tests): CPPFLAGS	+= $(shell $(PKGCONF) --cflags gtest gmock)
 $(ut_tests): CFLAGS		+= -Og -g2 -ftest-coverage -fprofile-arcs
 $(ut_tests): CXXFLAGS	+= -Og -g2 -ftest-coverage -fprofile-arcs -fno-rtti
 $(ut_tests): LDFLAGS	:=
@@ -581,7 +581,7 @@ src/wl-window.c: $(xdg_hdr)
 $(release_dir)/%.$(OBJ_SUFFIX): %.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(release_dir)/$*.json $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
@@ -600,7 +600,7 @@ endif
 $(release_dir)/%.$(OBJ_SUFFIX): $(BUILD_DIR)/%.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(release_dir)/$*.json $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
@@ -619,7 +619,7 @@ endif
 $(debug_dir)/%.$(OBJ_SUFFIX): %.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(debug_dir)/$*.json $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
@@ -638,7 +638,7 @@ endif
 $(debug_dir)/%.$(OBJ_SUFFIX): $(BUILD_DIR)/%.c
 	@printf "$(blue)Building [ $@ ]$(reset)\n"
 ifdef clang_used
-	$(Q)$(CC) -c -o $@ -MJ $(patsubst %.$(OBJ_SUFFIX),%.json,$@) $(CPPFLAGS) $(CFLAGS) $<
+	$(Q)$(CC) -c -o $@ -MJ $(debug_dir)/$*.json $(CPPFLAGS) $(CFLAGS) $<
 else
 	$(Q)$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 	@printf '%s' \
